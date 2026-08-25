@@ -8,7 +8,7 @@ export type Radio = {
   status: RadioStatus;
   bateria: number;
   local: string;
-  observacao?: string;
+  observacao?: string | undefined;
 };
 
 export type RentalStatus = "ativa" | "reservada" | "finalizada" | "atrasada";
@@ -37,7 +37,7 @@ export type Client = {
   responsavel: string;
   locacoes: number;
   saldo: number;
-  observacoes?: string;
+  observacoes?: string | undefined;
 };
 
 export type Maintenance = {
