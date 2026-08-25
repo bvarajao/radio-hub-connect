@@ -10,33 +10,192 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ClientesRouteImport } from './routes/clientes'
+import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as FinanceiroRouteImport } from './routes/financeiro'
+import { Route as ManutencaoRouteImport } from './routes/manutencao'
+import { Route as RadiosRouteImport } from './routes/radios'
+import { Route as RelatoriosRouteImport } from './routes/relatorios'
+import { Route as DevolucaoIndexRouteImport } from './routes/devolucao.index'
+import { Route as DevolucaoRentalIdRouteImport } from './routes/devolucao.$rentalId'
+import { Route as LocacoesIndexRouteImport } from './routes/locacoes.index'
+import { Route as LocacoesNovaRouteImport } from './routes/locacoes.nova'
+import { Route as RadiosRadioIdRouteImport } from './routes/radios.$radioId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ClientesRoute = ClientesRouteImport.update({
+  id: '/clientes',
+  path: '/clientes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConfiguracoesRoute = ConfiguracoesRouteImport.update({
+  id: '/configuracoes',
+  path: '/configuracoes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FinanceiroRoute = FinanceiroRouteImport.update({
+  id: '/financeiro',
+  path: '/financeiro',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ManutencaoRoute = ManutencaoRouteImport.update({
+  id: '/manutencao',
+  path: '/manutencao',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RadiosRoute = RadiosRouteImport.update({
+  id: '/radios',
+  path: '/radios',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RelatoriosRoute = RelatoriosRouteImport.update({
+  id: '/relatorios',
+  path: '/relatorios',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DevolucaoIndexRoute = DevolucaoIndexRouteImport.update({
+  id: '/devolucao/',
+  path: '/devolucao/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DevolucaoRentalIdRoute = DevolucaoRentalIdRouteImport.update({
+  id: '/devolucao/$rentalId',
+  path: '/devolucao/$rentalId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LocacoesIndexRoute = LocacoesIndexRouteImport.update({
+  id: '/locacoes/',
+  path: '/locacoes/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LocacoesNovaRoute = LocacoesNovaRouteImport.update({
+  id: '/locacoes/nova',
+  path: '/locacoes/nova',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RadiosRadioIdRoute = RadiosRadioIdRouteImport.update({
+  id: '/$radioId',
+  path: '/$radioId',
+  getParentRoute: () => RadiosRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/clientes': typeof ClientesRoute
+  '/configuracoes': typeof ConfiguracoesRoute
+  '/dashboard': typeof DashboardRoute
+  '/financeiro': typeof FinanceiroRoute
+  '/manutencao': typeof ManutencaoRoute
+  '/radios': typeof RadiosRouteWithChildren
+  '/relatorios': typeof RelatoriosRoute
+  '/devolucao/$rentalId': typeof DevolucaoRentalIdRoute
+  '/locacoes/nova': typeof LocacoesNovaRoute
+  '/radios/$radioId': typeof RadiosRadioIdRoute
+  '/devolucao/': typeof DevolucaoIndexRoute
+  '/locacoes/': typeof LocacoesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/clientes': typeof ClientesRoute
+  '/configuracoes': typeof ConfiguracoesRoute
+  '/dashboard': typeof DashboardRoute
+  '/financeiro': typeof FinanceiroRoute
+  '/manutencao': typeof ManutencaoRoute
+  '/radios': typeof RadiosRouteWithChildren
+  '/relatorios': typeof RelatoriosRoute
+  '/devolucao/$rentalId': typeof DevolucaoRentalIdRoute
+  '/locacoes/nova': typeof LocacoesNovaRoute
+  '/radios/$radioId': typeof RadiosRadioIdRoute
+  '/devolucao': typeof DevolucaoIndexRoute
+  '/locacoes': typeof LocacoesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/clientes': typeof ClientesRoute
+  '/configuracoes': typeof ConfiguracoesRoute
+  '/dashboard': typeof DashboardRoute
+  '/financeiro': typeof FinanceiroRoute
+  '/manutencao': typeof ManutencaoRoute
+  '/radios': typeof RadiosRouteWithChildren
+  '/relatorios': typeof RelatoriosRoute
+  '/devolucao/$rentalId': typeof DevolucaoRentalIdRoute
+  '/locacoes/nova': typeof LocacoesNovaRoute
+  '/radios/$radioId': typeof RadiosRadioIdRoute
+  '/devolucao/': typeof DevolucaoIndexRoute
+  '/locacoes/': typeof LocacoesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/clientes'
+    | '/configuracoes'
+    | '/dashboard'
+    | '/financeiro'
+    | '/manutencao'
+    | '/radios'
+    | '/relatorios'
+    | '/devolucao/$rentalId'
+    | '/locacoes/nova'
+    | '/radios/$radioId'
+    | '/devolucao/'
+    | '/locacoes/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/clientes'
+    | '/configuracoes'
+    | '/dashboard'
+    | '/financeiro'
+    | '/manutencao'
+    | '/radios'
+    | '/relatorios'
+    | '/devolucao/$rentalId'
+    | '/locacoes/nova'
+    | '/radios/$radioId'
+    | '/devolucao'
+    | '/locacoes'
+  id:
+    | '__root__'
+    | '/'
+    | '/clientes'
+    | '/configuracoes'
+    | '/dashboard'
+    | '/financeiro'
+    | '/manutencao'
+    | '/radios'
+    | '/relatorios'
+    | '/devolucao/$rentalId'
+    | '/locacoes/nova'
+    | '/radios/$radioId'
+    | '/devolucao/'
+    | '/locacoes/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ClientesRoute: typeof ClientesRoute
+  ConfiguracoesRoute: typeof ConfiguracoesRoute
+  DashboardRoute: typeof DashboardRoute
+  FinanceiroRoute: typeof FinanceiroRoute
+  ManutencaoRoute: typeof ManutencaoRoute
+  RadiosRoute: typeof RadiosRouteWithChildren
+  RelatoriosRoute: typeof RelatoriosRoute
+  DevolucaoRentalIdRoute: typeof DevolucaoRentalIdRoute
+  LocacoesNovaRoute: typeof LocacoesNovaRoute
+  DevolucaoIndexRoute: typeof DevolucaoIndexRoute
+  LocacoesIndexRoute: typeof LocacoesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +207,117 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/clientes': {
+      id: '/clientes'
+      path: '/clientes'
+      fullPath: '/clientes'
+      preLoaderRoute: typeof ClientesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/configuracoes': {
+      id: '/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/configuracoes'
+      preLoaderRoute: typeof ConfiguracoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/financeiro': {
+      id: '/financeiro'
+      path: '/financeiro'
+      fullPath: '/financeiro'
+      preLoaderRoute: typeof FinanceiroRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/manutencao': {
+      id: '/manutencao'
+      path: '/manutencao'
+      fullPath: '/manutencao'
+      preLoaderRoute: typeof ManutencaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/radios': {
+      id: '/radios'
+      path: '/radios'
+      fullPath: '/radios'
+      preLoaderRoute: typeof RadiosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/relatorios': {
+      id: '/relatorios'
+      path: '/relatorios'
+      fullPath: '/relatorios'
+      preLoaderRoute: typeof RelatoriosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/devolucao/': {
+      id: '/devolucao/'
+      path: '/devolucao'
+      fullPath: '/devolucao/'
+      preLoaderRoute: typeof DevolucaoIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/devolucao/$rentalId': {
+      id: '/devolucao/$rentalId'
+      path: '/devolucao/$rentalId'
+      fullPath: '/devolucao/$rentalId'
+      preLoaderRoute: typeof DevolucaoRentalIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/locacoes/': {
+      id: '/locacoes/'
+      path: '/locacoes'
+      fullPath: '/locacoes/'
+      preLoaderRoute: typeof LocacoesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/locacoes/nova': {
+      id: '/locacoes/nova'
+      path: '/locacoes/nova'
+      fullPath: '/locacoes/nova'
+      preLoaderRoute: typeof LocacoesNovaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/radios/$radioId': {
+      id: '/radios/$radioId'
+      path: '/$radioId'
+      fullPath: '/radios/$radioId'
+      preLoaderRoute: typeof RadiosRadioIdRouteImport
+      parentRoute: typeof RadiosRoute
+    }
   }
 }
 
+interface RadiosRouteChildren {
+  RadiosRadioIdRoute: typeof RadiosRadioIdRoute
+}
+
+const RadiosRouteChildren: RadiosRouteChildren = {
+  RadiosRadioIdRoute: RadiosRadioIdRoute,
+}
+
+const RadiosRouteWithChildren =
+  RadiosRoute._addFileChildren(RadiosRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ClientesRoute: ClientesRoute,
+  ConfiguracoesRoute: ConfiguracoesRoute,
+  DashboardRoute: DashboardRoute,
+  FinanceiroRoute: FinanceiroRoute,
+  ManutencaoRoute: ManutencaoRoute,
+  RadiosRoute: RadiosRouteWithChildren,
+  RelatoriosRoute: RelatoriosRoute,
+  DevolucaoRentalIdRoute: DevolucaoRentalIdRoute,
+  LocacoesNovaRoute: LocacoesNovaRoute,
+  DevolucaoIndexRoute: DevolucaoIndexRoute,
+  LocacoesIndexRoute: LocacoesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
