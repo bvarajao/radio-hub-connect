@@ -1,168 +1,18 @@
+import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
+import { toast } from "sonner";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
 import { Badge } from "@/components/app/StatusBadge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { accessories, brlExact } from "@/lib/mock-data";
+import { Button } from "@/components/ui/button";import { Input } from "@/components/ui/input";import { Label } from "@/components/ui/label";import { Textarea } from "@/components/ui/textarea";
+import { Dialog,DialogContent,DialogFooter,DialogHeader,DialogTitle,DialogTrigger } from "@/components/ui/dialog";
+import { Tabs,TabsContent,TabsList,TabsTrigger } from "@/components/ui/tabs";
+import { createAccessory,getOrganization,listAccessories,updateOrganization,type DbAccessory,type DbOrganization } from "@/lib/live-data";
+import { getCurrentUser } from "@/lib/supabase-rest";
+import { brlExact } from "@/lib/mock-data";
 
-export const Route = createFileRoute("/configuracoes")({
-  head: () => ({
-    meta: [
-      { title: "Configurações | Papo de Produtor — Gestão de Rádios" },
-      {
-        name: "description",
-        content:
-          "Dados da empresa, usuários, formas de pagamento, categorias de acessórios e preferências do sistema.",
-      },
-      { property: "og:title", content: "Configurações — Papo de Produtor" },
-      {
-        property: "og:description",
-        content: "Ajuste empresa, equipe e preferências do sistema de gestão de rádios.",
-      },
-    ],
-  }),
-  component: SettingsPage,
-});
-
-const users = [
-  { nome: "Bruno Varajão", email: "bruno@papodeprodutor.com", papel: "Administrador" },
-  { nome: "Marina Duarte", email: "marina@papodeprodutor.com", papel: "Operação" },
-  { nome: "Diego Santos", email: "diego@papodeprodutor.com", papel: "Financeiro" },
-];
-
-const payments = ["Pix", "Cartão de crédito", "Dinheiro", "Transferência", "Boleto / empenho"];
-
-function SettingsPage() {
-  return (
-    <AppShell title="Configurações">
-      <PageHeader title="Configurações" subtitle="Empresa, equipe e preferências do sistema" />
-
-      <Tabs defaultValue="empresa">
-        <TabsList className="w-full justify-start overflow-x-auto">
-          <TabsTrigger value="empresa">Empresa</TabsTrigger>
-          <TabsTrigger value="usuarios">Usuários</TabsTrigger>
-          <TabsTrigger value="pagamentos">Pagamentos</TabsTrigger>
-          <TabsTrigger value="acessorios">Acessórios</TabsTrigger>
-          <TabsTrigger value="preferencias">Preferências</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="empresa" className="mt-4">
-          <div className="surface-panel grid gap-4 p-5 sm:grid-cols-2">
-            <Field label="Razão social" value="Papo de Produtor Produções Ltda" />
-            <Field label="CNPJ" value="41.998.221/0001-70" />
-            <Field label="Telefone" value="(21) 99900-1122" />
-            <Field label="E-mail" value="contato@papodeprodutor.com" />
-            <Field label="Cidade" value="Rio de Janeiro / RJ" />
-            <Field label="Responsável" value="Bruno Varajão" />
-            <div className="sm:col-span-2">
-              <Button variant="hero">Salvar dados da empresa</Button>
-            </div>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="usuarios" className="mt-4">
-          <div className="surface-panel overflow-hidden">
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border p-4">
-              <h2 className="min-w-0 truncate font-display text-base font-bold">Equipe</h2>
-              <Button variant="hero" size="sm">
-                <Plus className="h-4 w-4" /> Convidar
-              </Button>
-            </div>
-            <ul className="divide-y divide-border">
-              {users.map((u) => (
-                <li key={u.email} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 p-4">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold">{u.nome}</p>
-                    <p className="truncate text-xs text-muted-foreground">{u.email}</p>
-                  </div>
-                  <Badge tone={u.papel === "Administrador" ? "brand" : "muted"}>{u.papel}</Badge>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="pagamentos" className="mt-4">
-          <div className="surface-panel p-5">
-            <h2 className="font-display text-base font-bold">Formas de pagamento aceitas</h2>
-            <ul className="mt-4 space-y-3">
-              {payments.map((p) => (
-                <li
-                  key={p}
-                  className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl bg-secondary/50 p-3"
-                >
-                  <span className="min-w-0 truncate text-sm">{p}</span>
-                  <Switch defaultChecked />
-                </li>
-              ))}
-            </ul>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="acessorios" className="mt-4">
-          <div className="surface-panel overflow-hidden">
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border p-4">
-              <h2 className="min-w-0 truncate font-display text-base font-bold">
-                Categorias de acessórios
-              </h2>
-              <Button variant="hero" size="sm">
-                <Plus className="h-4 w-4" /> Novo
-              </Button>
-            </div>
-            <ul className="divide-y divide-border">
-              {accessories.map((a) => (
-                <li key={a.id} className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 p-4">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{a.nome}</p>
-                    <p className="text-xs text-muted-foreground">{a.estoque} em estoque</p>
-                  </div>
-                  <span className="text-sm font-semibold">{brlExact(a.valor)}</span>
-                  <Button variant="ghost" size="icon" aria-label="Remover">
-                    <Trash2 className="h-4 w-4 text-muted-foreground" />
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="preferencias" className="mt-4">
-          <div className="surface-panel space-y-4 p-5">
-            <Pref
-              title="Alerta de devolução atrasada"
-              text="Notificar a equipe 2 horas após o horário previsto."
-            />
-            <Pref
-              title="Exigir conferência item por item"
-              text="Obriga marcar cada rádio na devolução."
-            />
-            <Pref title="Numeração automática de locação" text="Padrão LOC-ANO-0000." />
-            <Pref title="Bloquear locação com saldo em aberto" text="Aplicado a novos clientes." />
-          </div>
-        </TabsContent>
-      </Tabs>
-    </AppShell>
-  );
-}
-
-const Field = ({ label, value }: { label: string; value: string }) => (
-  <div className="space-y-1.5">
-    <Label>{label}</Label>
-    <Input className="h-11" defaultValue={value} />
-  </div>
-);
-
-const Pref = ({ title, text }: { title: string; text: string }) => (
-  <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl bg-secondary/50 p-3.5">
-    <div className="min-w-0">
-      <p className="text-sm font-semibold">{title}</p>
-      <p className="text-xs text-muted-foreground">{text}</p>
-    </div>
-    <Switch defaultChecked />
-  </div>
-);
+export const Route=createFileRoute("/configuracoes")({component:SettingsPage});
+function SettingsPage(){const [org,setOrg]=useState<DbOrganization|null>(null);const [accessories,setAccessories]=useState<DbAccessory[]>([]);const [form,setForm]=useState<any>({});const [open,setOpen]=useState(false);const load=()=>Promise.all([getOrganization(),listAccessories()]).then(([o,a])=>{setOrg(o);setAccessories(a);if(o)setForm(o)}).catch(e=>toast.error(e instanceof Error?e.message:"Erro ao carregar configurações"));useEffect(load,[]);async function saveOrg(){try{const rows=await updateOrganization({name:form.name,legal_name:form.legal_name||null,cnpj:form.cnpj||null,phone:form.phone||null,email:form.email||null,address:form.address||null});if(rows[0]){setOrg(rows[0]);setForm(rows[0])}toast.success("Dados da empresa salvos")}catch(e){toast.error(e instanceof Error?e.message:"Erro ao salvar")}}const user=getCurrentUser();return <AppShell title="Configurações"><PageHeader title="Configurações" subtitle="Dados da empresa, equipe e acessórios"/><Tabs defaultValue="empresa"><TabsList className="w-full justify-start overflow-x-auto"><TabsTrigger value="empresa">Empresa</TabsTrigger><TabsTrigger value="usuarios">Usuários</TabsTrigger><TabsTrigger value="acessorios">Acessórios</TabsTrigger></TabsList><TabsContent value="empresa" className="mt-4"><div className="surface-panel grid gap-4 p-5 sm:grid-cols-2"><Field label="Nome comercial" value={form.name||""} set={v=>setForm({...form,name:v})}/><Field label="Razão social" value={form.legal_name||""} set={v=>setForm({...form,legal_name:v})}/><Field label="CNPJ" value={form.cnpj||""} set={v=>setForm({...form,cnpj:v})}/><Field label="Telefone" value={form.phone||""} set={v=>setForm({...form,phone:v})}/><Field label="E-mail" value={form.email||""} set={v=>setForm({...form,email:v})} wide/><Field label="Endereço" value={form.address||""} set={v=>setForm({...form,address:v})} wide/><div className="sm:col-span-2"><Button variant="hero" onClick={saveOrg}>Salvar dados da empresa</Button></div></div></TabsContent><TabsContent value="usuarios" className="mt-4"><div className="surface-panel p-5"><h2 className="font-display text-base font-bold">Acesso atual</h2><div className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-secondary/50 p-4"><div className="min-w-0"><p className="truncate text-sm font-semibold">{user?.email||"Usuário autenticado"}</p><p className="text-xs text-muted-foreground">Administrador da organização</p></div><Badge tone="brand">Owner</Badge></div><p className="mt-4 text-xs text-muted-foreground">Convites para outros usuários serão adicionados em uma próxima etapa; o banco já suporta os perfis owner, admin, operação e financeiro.</p></div></TabsContent><TabsContent value="acessorios" className="mt-4"><div className="surface-panel overflow-hidden"><div className="flex items-center justify-between gap-3 border-b border-border p-4"><h2 className="font-display text-base font-bold">Acessórios</h2><NewAccessory open={open} setOpen={setOpen} onSaved={load}/></div><ul className="divide-y divide-border">{accessories.map(a=><li key={a.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 p-4"><div className="min-w-0"><p className="truncate text-sm font-medium">{a.name}</p><p className="text-xs text-muted-foreground">{a.stock_total} em estoque · {a.category}</p></div><span className="font-semibold">{brlExact(Number(a.unit_cost||0))}</span></li>)}{!accessories.length&&<li className="p-8 text-center text-sm text-muted-foreground">Nenhum acessório cadastrado.</li>}</ul></div></TabsContent></Tabs></AppShell>}
+function NewAccessory({open,setOpen,onSaved}:{open:boolean;setOpen:(v:boolean)=>void;onSaved:()=>void}){const [f,setF]=useState<any>({name:"",category:"other",stock_total:"0",unit_cost:"0",notes:""});const [busy,setBusy]=useState(false);async function save(){if(!f.name)return;setBusy(true);try{await createAccessory({name:f.name,category:f.category||"other",stock_total:Number(f.stock_total||0),unit_cost:Number(f.unit_cost||0),notes:f.notes||null,is_active:true});toast.success("Acessório salvo");setOpen(false);setF({name:"",category:"other",stock_total:"0",unit_cost:"0",notes:""});onSaved();}catch(e){toast.error(e instanceof Error?e.message:"Erro ao salvar")}finally{setBusy(false)}}return <Dialog open={open} onOpenChange={setOpen}><DialogTrigger asChild><Button variant="hero" size="sm"><Plus className="h-4 w-4"/> Novo</Button></DialogTrigger><DialogContent><DialogHeader><DialogTitle>Novo acessório</DialogTitle></DialogHeader><div className="grid gap-3 sm:grid-cols-2"><Field label="Nome" value={f.name} set={v=>setF({...f,name:v})} wide/><Field label="Categoria" value={f.category} set={v=>setF({...f,category:v})}/><Field label="Quantidade" value={f.stock_total} set={v=>setF({...f,stock_total:v})} type="number"/><Field label="Valor unitário" value={f.unit_cost} set={v=>setF({...f,unit_cost:v})} type="number"/><div className="space-y-1.5 sm:col-span-2"><Label>Observações</Label><Textarea value={f.notes} onChange={e=>setF({...f,notes:e.target.value})}/></div></div><DialogFooter><Button variant="hero" disabled={busy} onClick={save}>{busy?"Salvando...":"Salvar"}</Button></DialogFooter></Dialog>}
+function Field({label,value,set,type="text",wide=false}:{label:string;value:string;set:(v:string)=>void;type?:string;wide?:boolean}){return <div className={`space-y-1.5 ${wide?"sm:col-span-2":""}`}><Label>{label}</Label><Input type={type} value={value} onChange={e=>set(e.target.value)} className="h-11"/></div>}
