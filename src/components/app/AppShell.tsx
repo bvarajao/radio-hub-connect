@@ -36,7 +36,7 @@ const mobileNav = nav.filter((n) =>
   ["/dashboard", "/radios", "/locacoes", "/devolucao", "/financeiro"].includes(n.to),
 );
 
-function NavList({ onNavigate }: { onNavigate?: () => void }) {
+function NavList({ onNavigate }: { onNavigate?: (() => void) | undefined }) {
   return (
     <nav className="flex flex-col gap-1">
       {nav.map(({ to, label, icon: Icon }) => (
@@ -55,7 +55,7 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
+function SidebarBody({ onNavigate }: { onNavigate?: (() => void) | undefined }) {
   return (
     <div className="gradient-night flex h-full flex-col gap-6 p-4">
       <div className="px-1 pt-1">
