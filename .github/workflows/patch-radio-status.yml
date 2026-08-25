@@ -22,6 +22,7 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
           p = Path('src/lib/operations.ts')
           s = p.read_text()
 
@@ -32,7 +33,8 @@ jobs:
             });
           }
           '''
-          helper = marker + '''\nasync function refreshRadioOperationalStatuses(radioIds: string[]) {
+          helper = '''
+          async function refreshRadioOperationalStatuses(radioIds: string[]) {
             const ids = [...new Set(radioIds.filter(Boolean))];
             if (!ids.length) return;
 
@@ -56,15 +58,14 @@ jobs:
             );
 
             await Promise.all(
-              radios.map((radio) => {
-                if (["lost", "inactive"].includes(radio.status)) return Promise.resolve();
-                const status = maintenanceIds.has(radio.id)
+              radios.map(async (radio) => {
+                if (["lost", "inactive"].includes(radio.status)) return;
+                const nextStatus = maintenanceIds.has(radio.id)
                   ? "maintenance"
                   : rentedIds.has(radio.id)
                     ? "rented"
                     : "available";
-                if (status === radio.status) return Promise.resolve();
-                return updateRadioRecord(radio.id, { status }).then(() => undefined);
+                if (nextStatus !== radio.status) await updateRadioRecord(radio.id, { status: nextStatus });
               }),
             );
           }
@@ -72,104 +73,128 @@ jobs:
           if 'async function refreshRadioOperationalStatuses' not in s:
               if marker not in s:
                   raise SystemExit('deleteRows marker not found')
-              s = s.replace(marker, helper, 1)
+              s = s.replace(marker, marker + helper, 1)
 
-          replacements = [
-          ('''    if (links.length) {
-              const radioIds = [...new Set(links.map((x) => x.radio_id))];
-              await rest(`radios?id=in.(${inFilter(radioIds)})&status=eq.available`, {
-                method: "PATCH",
+          update_fn = r'''export async function updateRentalOperational\([\s\S]*?\n}\n\nexport async function replaceRentalRadios'''
+          update_replacement = '''export async function updateRentalOperational(
+            rental: OperationalRental,
+            data: {
+              client_id: string;
+              event_name: string | null;
+              pickup_at: string;
+              due_at: string;
+              subtotal: number;
+              discount: number;
+              surcharge: number;
+              total: number;
+              payment_status: string;
+              payment_method: string | null;
+              deposit_amount: number;
+              notes: string | null;
+            },
+          ) {
+            if (["returned", "cancelled"].includes(rental.status)) throw new Error("Esta locação já foi encerrada e não pode ser editada.");
+            if (new Date(data.due_at) <= new Date(data.pickup_at)) throw new Error("A devolução precisa ser posterior à retirada.");
+
+            const radioIds = (rental.rental_radios || []).map((r) => r.radio_id);
+            const blocked = await blockedRadioIdsForPeriod(data.pickup_at, data.due_at, rental.id);
+            if (radioIds.some((id) => blocked.has(id))) throw new Error("A nova data conflita com outra reserva de um dos rádios.");
+
+            const now = new Date();
+            const status = new Date(data.pickup_at) > now ? "reserved" : new Date(data.due_at) < now ? "late" : "active";
+            const rows = await rest<OperationalRental[]>(`rentals?id=eq.${rental.id}&select=*`, {
+              method: "PATCH",
+              headers: { Prefer: "return=representation" },
+              body: JSON.stringify({ ...data, status }),
+            });
+
+            if (radioIds.length) await refreshRadioOperationalStatuses(radioIds);
+
+            await rebuildRentalFinance({
+              id: rental.id,
+              code: rental.code,
+              client_id: data.client_id,
+              event_name: data.event_name,
+              total: data.total,
+              deposit_amount: data.deposit_amount,
+              payment_status: data.payment_status,
+              payment_method: data.payment_method,
+            });
+
+            return rows;
+          }
+
+          export async function replaceRentalRadios'''
+          s, count = re.subn(update_fn, update_replacement, s, count=1)
+          if count != 1:
+              raise SystemExit('updateRentalOperational function not found')
+
+          replace_fn = r'''export async function replaceRentalRadios\([\s\S]*?\n}\n\nexport async function cancelRental'''
+          replace_replacement = '''export async function replaceRentalRadios(rental: OperationalRental, nextRadioIds: string[]) {
+            if (["returned", "cancelled"].includes(rental.status)) throw new Error("Não é possível alterar equipamentos de uma locação encerrada.");
+            if (!nextRadioIds.length) throw new Error("A locação precisa ter pelo menos um rádio.");
+
+            const blocked = await blockedRadioIdsForPeriod(rental.pickup_at, rental.due_at, rental.id);
+            if (nextRadioIds.some((id) => blocked.has(id))) throw new Error("Um dos rádios escolhidos está comprometido neste período.");
+
+            const currentIds = (rental.rental_radios || []).map((r) => r.radio_id);
+            const removed = currentIds.filter((id) => !nextRadioIds.includes(id));
+            const added = nextRadioIds.filter((id) => !currentIds.includes(id));
+
+            if (removed.length) {
+              await deleteRows(`rental_radios?rental_id=eq.${rental.id}&radio_id=in.(${inFilter(removed)})`);
+            }
+
+            if (added.length) {
+              await rest("rental_radios", {
+                method: "POST",
                 headers: { Prefer: "return=minimal" },
-                body: JSON.stringify({ status: "rented" }),
+                body: JSON.stringify(
+                  added.map((radioId) => ({
+                    rental_id: rental.id,
+                    radio_id: radioId,
+                    daily_rate: 0,
+                    checkout_condition: "ok",
+                  })),
+                ),
               });
             }
-          ''', '''    if (links.length) {
-              const radioIds = [...new Set(links.map((x) => x.radio_id))];
-              await refreshRadioOperationalStatuses(radioIds);
-            }
-          '''),
-          ('''  if (radioIds.length) {
-            await rest(`radios?id=in.(${inFilter(radioIds)})`, {
-              method: "PATCH",
-              headers: { Prefer: "return=minimal" },
-              body: JSON.stringify({ status: status === "reserved" ? "available" : "rented" }),
-            });
-          }
-          ''', '''  if (radioIds.length) {
-            await refreshRadioOperationalStatuses(radioIds);
-          }
-          '''),
-          ('''  if (removed.length) {
-            await deleteRows(`rental_radios?rental_id=eq.${rental.id}&radio_id=in.(${inFilter(removed)})`);
-            await rest(`radios?id=in.(${inFilter(removed)})&status=in.(rented,reserved)`, {
-              method: "PATCH",
-              headers: { Prefer: "return=minimal" },
-              body: JSON.stringify({ status: "available" }),
-            });
-          }
-          ''', '''  if (removed.length) {
-            await deleteRows(`rental_radios?rental_id=eq.${rental.id}&radio_id=in.(${inFilter(removed)})`);
-          }
-          '''),
-          ('''  if (added.length) {
-            await rest("rental_radios", {
-              method: "POST",
-              headers: { Prefer: "return=minimal" },
-              body: JSON.stringify(
-                added.map((radioId) => ({
-                  rental_id: rental.id,
-                  radio_id: radioId,
-                  daily_rate: 0,
-                  checkout_condition: "ok",
-                })),
-              ),
-            });
-            if (["active", "late"].includes(rental.status)) {
-              await rest(`radios?id=in.(${inFilter(added)})`, {
-                method: "PATCH",
-                headers: { Prefer: "return=minimal" },
-                body: JSON.stringify({ status: "rented" }),
-              });
+
+            if (removed.length || added.length) {
+              await refreshRadioOperationalStatuses([...removed, ...added]);
             }
           }
-          ''', '''  if (added.length) {
-            await rest("rental_radios", {
-              method: "POST",
+
+          export async function cancelRental'''
+          s, count = re.subn(replace_fn, replace_replacement, s, count=1)
+          if count != 1:
+              raise SystemExit('replaceRentalRadios function not found')
+
+          cancel_fn = r'''export async function cancelRental\([\s\S]*?\n}\n\nexport async function saveReturnOperational'''
+          cancel_replacement = '''export async function cancelRental(rental: OperationalRental) {
+            if (rental.status === "returned") throw new Error("Uma locação já devolvida não pode ser cancelada.");
+            if (rental.status === "cancelled") return;
+
+            await rest(`rentals?id=eq.${rental.id}`, {
+              method: "PATCH",
               headers: { Prefer: "return=minimal" },
-              body: JSON.stringify(
-                added.map((radioId) => ({
-                  rental_id: rental.id,
-                  radio_id: radioId,
-                  daily_rate: 0,
-                  checkout_condition: "ok",
-                })),
-              ),
+              body: JSON.stringify({ status: "cancelled" }),
+            });
+
+            const radioIds = (rental.rental_radios || []).map((r) => r.radio_id);
+            if (radioIds.length) await refreshRadioOperationalStatuses(radioIds);
+
+            await rest(`financial_transactions?rental_id=eq.${rental.id}&status=in.(pending,overdue)`, {
+              method: "PATCH",
+              headers: { Prefer: "return=minimal" },
+              body: JSON.stringify({ status: "cancelled" }),
             });
           }
 
-          if (removed.length || added.length) {
-            await refreshRadioOperationalStatuses([...removed, ...added]);
-          }
-          '''),
-          ('''  const radioIds = (rental.rental_radios || []).map((r) => r.radio_id);
-          if (radioIds.length) {
-            await rest(`radios?id=in.(${inFilter(radioIds)})&status=in.(rented,reserved)`, {
-              method: "PATCH",
-              headers: { Prefer: "return=minimal" },
-              body: JSON.stringify({ status: "available" }),
-            });
-          }
-          ''', '''  const radioIds = (rental.rental_radios || []).map((r) => r.radio_id);
-          if (radioIds.length) {
-            await refreshRadioOperationalStatuses(radioIds);
-          }
-          '''),
-          ]
-
-          for old, new in replacements:
-              if old not in s:
-                  raise SystemExit('expected rental status block not found')
-              s = s.replace(old, new, 1)
+          export async function saveReturnOperational'''
+          s, count = re.subn(cancel_fn, cancel_replacement, s, count=1)
+          if count != 1:
+              raise SystemExit('cancelRental function not found')
 
           p.write_text(s)
           PY
