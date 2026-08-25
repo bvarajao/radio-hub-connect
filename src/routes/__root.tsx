@@ -81,8 +81,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "Papo de Produtor | Gestão de Rádios" },
       {
         name: "description",
-        content:
-          "Sistema de gestão de locação de rádios comunicadores para produção de eventos.",
+        content: "Sistema de gestão de locação de rádios comunicadores para produção de eventos.",
       },
       { name: "author", content: "Papo de Produtor" },
       { property: "og:title", content: "Papo de Produtor | Gestão de Rádios" },

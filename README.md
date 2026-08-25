@@ -6,6 +6,7 @@ OBJETIVO
 Construir primeiro um FRONT-END completo, bonito, direto, intuitivo e responsivo para desktop e celular. Nesta etapa, use dados fictícios/mockados e não dependa de backend real. A arquitetura visual e os componentes, porém, devem ficar preparados para integração posterior com Supabase, GitHub e deploy na Vercel.
 
 DIREÇÃO VISUAL
+
 - Aparência moderna, premium, limpa e profissional.
 - Não parecer um ERP antigo ou poluído.
 - Interface extremamente fácil de operar durante eventos e locações.
@@ -17,13 +18,16 @@ DIREÇÃO VISUAL
 - Crie um logotipo tipográfico temporário simples com “Papo de Produtor” e subtítulo “Gestão de Rádios”; não invente uma marca complexa.
 
 TELAS E FLUXOS INICIAIS
+
 1. LOGIN
+
 - Tela elegante de acesso.
 - E-mail, senha, lembrar acesso e botão Entrar.
 - Pode ser apenas visual nesta etapa.
 
 2. DASHBOARD
-Mostrar indicadores principais com dados mockados:
+   Mostrar indicadores principais com dados mockados:
+
 - Total de rádios cadastrados.
 - Rádios locados.
 - Rádios disponíveis.
@@ -34,6 +38,7 @@ Mostrar indicadores principais com dados mockados:
 - Locações com devolução próxima/atrasada.
 
 Adicionar:
+
 - Botão de destaque “+ Nova Locação”.
 - Lista de locações em andamento.
 - Próximas devoluções.
@@ -41,6 +46,7 @@ Adicionar:
 - Indicador visual de ocupação do estoque.
 
 3. RÁDIOS / EQUIPAMENTOS
+
 - Lista com busca e filtros.
 - Cada rádio deve ser tratado individualmente, com código patrimonial no padrão RAD-001, RAD-002 etc.
 - Campos visuais: código, modelo, número de série, status, bateria, observação/localização.
@@ -50,12 +56,14 @@ Adicionar:
 - Reserve espaço para futuro QR Code individual.
 
 4. LOCAÇÕES
+
 - Página com abas/filtros: Ativas, Reservadas, Finalizadas, Atrasadas.
 - Tabela/cards com número da locação, cliente, período, quantidade de rádios, valor, pagamento e status.
 - Botão “+ Nova Locação”.
 
 5. NOVA LOCAÇÃO
-Criar um fluxo simples em etapas, sem burocracia:
+   Criar um fluxo simples em etapas, sem burocracia:
+
 - Cliente.
 - Data/hora de retirada.
 - Data/hora prevista de devolução.
@@ -70,6 +78,7 @@ Criar um fluxo simples em etapas, sem burocracia:
 - A interface deve deixar claro quais rádios estão disponíveis.
 
 6. DEVOLUÇÃO / CONFERÊNCIA
+
 - Tela pensada para uso rápido no celular.
 - Exibir equipamentos da locação.
 - Para cada rádio: OK, Avariado, Faltando.
@@ -78,11 +87,13 @@ Criar um fluxo simples em etapas, sem burocracia:
 - Botão “Finalizar devolução”.
 
 7. CLIENTES
+
 - Cadastro e lista.
 - Nome/Razão social, CPF/CNPJ, telefone, e-mail, responsável e observações.
 - Histórico visual de locações e saldo a receber.
 
 8. FINANCEIRO
+
 - Cards: faturamento no mês, recebido, a receber, despesas e resultado.
 - Entradas e saídas.
 - Filtros por período, cliente e situação.
@@ -90,13 +101,16 @@ Criar um fluxo simples em etapas, sem burocracia:
 - Contas a receber com vencimento e status.
 
 9. MANUTENÇÃO
+
 - Lista de rádios em manutenção.
 - Tipo do problema, data de entrada, custo, status, fornecedor/técnico e observação.
 
 10. RELATÓRIOS
+
 - Área visual inicial para relatórios futuros: faturamento, utilização dos rádios, clientes, manutenção e perdas.
 
 11. CONFIGURAÇÕES
+
 - Dados da empresa.
 - Usuários.
 - Formas de pagamento.
@@ -114,6 +128,7 @@ Relatórios
 Configurações
 
 REGRAS DE UX
+
 - O usuário deve conseguir iniciar uma nova locação em no máximo 1 clique a partir do dashboard.
 - Ações primárias muito claras.
 - Status com badges visuais consistentes.

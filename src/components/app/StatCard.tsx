@@ -38,12 +38,16 @@ export function StatCard({
         <p className="min-w-0 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
           {label}
         </p>
-        <span className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-lg", iconTones[tone])}>
+        <span
+          className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-lg", iconTones[tone])}
+        >
           <Icon className="h-4.5 w-4.5" />
         </span>
       </div>
       <div>
-        <p className="font-display text-2xl leading-none font-extrabold sm:text-[1.7rem]">{value}</p>
+        <p className="font-display text-2xl leading-none font-extrabold sm:text-[1.7rem]">
+          {value}
+        </p>
         {hint && <p className="mt-1.5 text-xs text-muted-foreground">{hint}</p>}
       </div>
     </div>

@@ -6,14 +6,250 @@ import { AppShell } from "@/components/app/AppShell";
 import { PageHeader, EmptyState } from "@/components/app/PageHeader";
 import { Badge } from "@/components/app/StatusBadge";
 import { StatCard } from "@/components/app/StatCard";
-import { Button } from "@/components/ui/button";import { Input } from "@/components/ui/input";import { Label } from "@/components/ui/label";import { Textarea } from "@/components/ui/textarea";
-import { Dialog,DialogContent,DialogFooter,DialogHeader,DialogTitle,DialogTrigger } from "@/components/ui/dialog";
-import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { brlExact } from "@/lib/mock-data";
-import { createMaintenance,listMaintenance,listRadios,type DbMaintenance,type DbRadio } from "@/lib/live-data";
+import {
+  createMaintenance,
+  listMaintenance,
+  listRadios,
+  type DbMaintenance,
+  type DbRadio,
+} from "@/lib/live-data";
 
-export const Route=createFileRoute("/manutencao")({component:MaintenancePage});
-const statusInfo:Record<string,{label:string;tone:"danger"|"warning"|"success"|"muted"}>={open:{label:"Aberta",tone:"danger"},in_progress:{label:"Em reparo",tone:"warning"},waiting_parts:{label:"Aguardando peça",tone:"warning"},completed:{label:"Concluída",tone:"success"},cancelled:{label:"Cancelada",tone:"muted"}};
-function MaintenancePage(){const [items,setItems]=useState<DbMaintenance[]>([]);const [radios,setRadios]=useState<DbRadio[]>([]);const [open,setOpen]=useState(false);const load=()=>Promise.all([listMaintenance(),listRadios()]).then(([m,r])=>{setItems(m);setRadios(r)}).catch(e=>toast.error(e instanceof Error?e.message:"Erro ao carregar manutenção"));useEffect(()=>{void load();},[]);const current=items.filter(i=>!["completed","cancelled"].includes(i.status));const metrics=useMemo(()=>({open:current.length,repair:current.filter(i=>i.status==="in_progress").length,done:items.filter(i=>i.status==="completed").length,cost:items.reduce((s,i)=>s+Number(i.cost||0),0)}),[items,current]);return <AppShell title="Manutenção"><PageHeader title="Manutenção" subtitle="Ordens de serviço e equipamentos fora de operação" actions={<NewMaintenance open={open} setOpen={setOpen} radios={radios} onSaved={load}/>}/><section className="grid grid-cols-2 gap-3 lg:grid-cols-4"><StatCard label="Ordens abertas" value={String(metrics.open)} icon={Wrench} tone="warning"/><StatCard label="Em reparo" value={String(metrics.repair)} icon={Wrench} tone="info"/><StatCard label="Concluídas" value={String(metrics.done)} icon={Wrench} tone="success"/><StatCard label="Custo acumulado" value={brlExact(metrics.cost)} icon={Wrench} tone="danger"/></section>{items.length===0?<EmptyState title="Nenhuma manutenção" description="Abra uma ordem quando um rádio precisar de reparo." action={<Button variant="hero" onClick={()=>setOpen(true)}><Plus className="h-4 w-4"/> Nova ordem</Button>}/>:<div className="grid gap-3">{items.map(m=>{const info=statusInfo[m.status] ?? statusInfo["open"]!;return <article key={m.id} className="surface-panel p-4"><div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className="font-display text-sm font-bold">{m.radios?.code||"Rádio"}</span><Badge tone={info.tone}>{info.label}</Badge></div><p className="mt-1 text-sm">{m.issue}</p></div><span className="font-display text-sm font-bold">{brlExact(Number(m.cost||0))}</span></div><div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3"><span>Entrada: {new Date(m.opened_at).toLocaleDateString("pt-BR")}</span><span>Técnico: {m.technician||"—"}</span><span className="truncate">{m.notes||"Sem observações"}</span></div></article>})}</div>}</AppShell>}
-function NewMaintenance({open,setOpen,radios,onSaved}:{open:boolean;setOpen:(v:boolean)=>void;radios:DbRadio[];onSaved:()=>void}){const [f,setF]=useState<any>({radio_id:"",issue:"",status:"open",technician:"",cost:"0",notes:""});const [busy,setBusy]=useState(false);async function save(){if(!f.radio_id||!f.issue){toast.error("Selecione o rádio e informe o problema");return;}setBusy(true);try{await createMaintenance({radio_id:f.radio_id,issue:f.issue,status:f.status,technician:f.technician||null,cost:Number(f.cost||0),notes:f.notes||null});toast.success("Ordem de manutenção criada");setOpen(false);setF({radio_id:"",issue:"",status:"open",technician:"",cost:"0",notes:""});onSaved();}catch(e){toast.error(e instanceof Error?e.message:"Erro ao salvar")}finally{setBusy(false)}}return <Dialog open={open} onOpenChange={setOpen}><DialogTrigger asChild><Button variant="hero"><Plus className="h-4 w-4"/> Nova ordem</Button></DialogTrigger><DialogContent className="sm:max-w-lg"><DialogHeader><DialogTitle>Nova ordem de manutenção</DialogTitle></DialogHeader><div className="grid gap-3 sm:grid-cols-2"><div className="space-y-1.5 sm:col-span-2"><Label>Rádio</Label><Select value={f.radio_id} onValueChange={v=>setF({...f,radio_id:v})}><SelectTrigger className="h-11"><SelectValue placeholder="Selecione"/></SelectTrigger><SelectContent>{radios.filter(r=>r.status!=="lost").map(r=><SelectItem key={r.id} value={r.id}>{r.code}{r.radio_models?` · ${r.radio_models.manufacturer} ${r.radio_models.model}`:""}</SelectItem>)}</SelectContent></Select></div><Field label="Problema" value={f.issue} set={v=>setF({...f,issue:v})} wide/><Field label="Técnico / fornecedor" value={f.technician} set={v=>setF({...f,technician:v})}/><Field label="Custo" value={f.cost} set={v=>setF({...f,cost:v})} type="number"/><div className="space-y-1.5 sm:col-span-2"><Label>Observações</Label><Textarea value={f.notes} onChange={e=>setF({...f,notes:e.target.value})}/></div></div><DialogFooter><Button variant="hero" onClick={save} disabled={busy}>{busy?"Salvando...":"Abrir ordem"}</Button></DialogFooter></DialogContent></Dialog>}
-function Field({label,value,set,type="text",wide=false}:{label:string;value:string;set:(v:string)=>void;type?:string;wide?:boolean}){return <div className={`space-y-1.5 ${wide?"sm:col-span-2":""}`}><Label>{label}</Label><Input type={type} value={value} onChange={e=>set(e.target.value)} className="h-11"/></div>}
+export const Route = createFileRoute("/manutencao")({ component: MaintenancePage });
+const statusInfo: Record<
+  string,
+  { label: string; tone: "danger" | "warning" | "success" | "muted" }
+> = {
+  open: { label: "Aberta", tone: "danger" },
+  in_progress: { label: "Em reparo", tone: "warning" },
+  waiting_parts: { label: "Aguardando peça", tone: "warning" },
+  completed: { label: "Concluída", tone: "success" },
+  cancelled: { label: "Cancelada", tone: "muted" },
+};
+function MaintenancePage() {
+  const [items, setItems] = useState<DbMaintenance[]>([]);
+  const [radios, setRadios] = useState<DbRadio[]>([]);
+  const [open, setOpen] = useState(false);
+  const load = () =>
+    Promise.all([listMaintenance(), listRadios()])
+      .then(([m, r]) => {
+        setItems(m);
+        setRadios(r);
+      })
+      .catch((e) => toast.error(e instanceof Error ? e.message : "Erro ao carregar manutenção"));
+  useEffect(() => {
+    void load();
+  }, []);
+  const current = items.filter((i) => !["completed", "cancelled"].includes(i.status));
+  const metrics = useMemo(
+    () => ({
+      open: current.length,
+      repair: current.filter((i) => i.status === "in_progress").length,
+      done: items.filter((i) => i.status === "completed").length,
+      cost: items.reduce((s, i) => s + Number(i.cost || 0), 0),
+    }),
+    [items, current],
+  );
+  return (
+    <AppShell title="Manutenção">
+      <PageHeader
+        title="Manutenção"
+        subtitle="Ordens de serviço e equipamentos fora de operação"
+        actions={<NewMaintenance open={open} setOpen={setOpen} radios={radios} onSaved={load} />}
+      />
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatCard
+          label="Ordens abertas"
+          value={String(metrics.open)}
+          icon={Wrench}
+          tone="warning"
+        />
+        <StatCard label="Em reparo" value={String(metrics.repair)} icon={Wrench} tone="info" />
+        <StatCard label="Concluídas" value={String(metrics.done)} icon={Wrench} tone="success" />
+        <StatCard
+          label="Custo acumulado"
+          value={brlExact(metrics.cost)}
+          icon={Wrench}
+          tone="danger"
+        />
+      </section>
+      {items.length === 0 ? (
+        <EmptyState
+          title="Nenhuma manutenção"
+          description="Abra uma ordem quando um rádio precisar de reparo."
+          action={
+            <Button variant="hero" onClick={() => setOpen(true)}>
+              <Plus className="h-4 w-4" /> Nova ordem
+            </Button>
+          }
+        />
+      ) : (
+        <div className="grid gap-3">
+          {items.map((m) => {
+            const info = statusInfo[m.status] ?? statusInfo["open"]!;
+            return (
+              <article key={m.id} className="surface-panel p-4">
+                <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-display text-sm font-bold">
+                        {m.radios?.code || "Rádio"}
+                      </span>
+                      <Badge tone={info.tone}>{info.label}</Badge>
+                    </div>
+                    <p className="mt-1 text-sm">{m.issue}</p>
+                  </div>
+                  <span className="font-display text-sm font-bold">
+                    {brlExact(Number(m.cost || 0))}
+                  </span>
+                </div>
+                <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
+                  <span>Entrada: {new Date(m.opened_at).toLocaleDateString("pt-BR")}</span>
+                  <span>Técnico: {m.technician || "—"}</span>
+                  <span className="truncate">{m.notes || "Sem observações"}</span>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </AppShell>
+  );
+}
+function NewMaintenance({
+  open,
+  setOpen,
+  radios,
+  onSaved,
+}: {
+  open: boolean;
+  setOpen: (v: boolean) => void;
+  radios: DbRadio[];
+  onSaved: () => void;
+}) {
+  const [f, setF] = useState<any>({
+    radio_id: "",
+    issue: "",
+    status: "open",
+    technician: "",
+    cost: "0",
+    notes: "",
+  });
+  const [busy, setBusy] = useState(false);
+  async function save() {
+    if (!f.radio_id || !f.issue) {
+      toast.error("Selecione o rádio e informe o problema");
+      return;
+    }
+    setBusy(true);
+    try {
+      await createMaintenance({
+        radio_id: f.radio_id,
+        issue: f.issue,
+        status: f.status,
+        technician: f.technician || null,
+        cost: Number(f.cost || 0),
+        notes: f.notes || null,
+      });
+      toast.success("Ordem de manutenção criada");
+      setOpen(false);
+      setF({ radio_id: "", issue: "", status: "open", technician: "", cost: "0", notes: "" });
+      onSaved();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao salvar");
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="hero">
+          <Plus className="h-4 w-4" /> Nova ordem
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Nova ordem de manutenção</DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label>Rádio</Label>
+            <Select value={f.radio_id} onValueChange={(v) => setF({ ...f, radio_id: v })}>
+              <SelectTrigger className="h-11">
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent>
+                {radios
+                  .filter((r) => r.status !== "lost")
+                  .map((r) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      {r.code}
+                      {r.radio_models
+                        ? ` · ${r.radio_models.manufacturer} ${r.radio_models.model}`
+                        : ""}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Field label="Problema" value={f.issue} set={(v) => setF({ ...f, issue: v })} wide />
+          <Field
+            label="Técnico / fornecedor"
+            value={f.technician}
+            set={(v) => setF({ ...f, technician: v })}
+          />
+          <Field label="Custo" value={f.cost} set={(v) => setF({ ...f, cost: v })} type="number" />
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label>Observações</Label>
+            <Textarea value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="hero" onClick={save} disabled={busy}>
+            {busy ? "Salvando..." : "Abrir ordem"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+function Field({
+  label,
+  value,
+  set,
+  type = "text",
+  wide = false,
+}: {
+  label: string;
+  value: string;
+  set: (v: string) => void;
+  type?: string;
+  wide?: boolean;
+}) {
+  return (
+    <div className={`space-y-1.5 ${wide ? "sm:col-span-2" : ""}`}>
+      <Label>{label}</Label>
+      <Input type={type} value={value} onChange={(e) => set(e.target.value)} className="h-11" />
+    </div>
+  );
+}

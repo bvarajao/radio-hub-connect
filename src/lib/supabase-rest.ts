@@ -4,21 +4,155 @@ const SESSION_KEY = "papo-radio-session";
 const ORG_KEY = "papo-radio-org";
 
 type AuthUser = { id: string; email?: string; user_metadata?: Record<string, unknown> };
-type Session = { access_token: string; refresh_token: string; expires_at?: number; expires_in?: number; user: AuthUser };
+type Session = {
+  access_token: string;
+  refresh_token: string;
+  expires_at?: number;
+  expires_in?: number;
+  user: AuthUser;
+};
 
-function isBrowser() { return typeof window !== "undefined"; }
-export function getSession(): Session | null { if (!isBrowser()) return null; try { return JSON.parse(localStorage.getItem(SESSION_KEY) || "null") as Session | null; } catch { return null; } }
-function saveSession(session: Session | null) { if (!isBrowser()) return; if (!session) { localStorage.removeItem(SESSION_KEY); localStorage.removeItem(ORG_KEY); return; } const next = { ...session, expires_at: session.expires_at ?? (session.expires_in ? Math.floor(Date.now()/1000) + session.expires_in : undefined) }; localStorage.setItem(SESSION_KEY, JSON.stringify(next)); }
-export function getCurrentUser() { return getSession()?.user ?? null; }
-export function getOrganizationId() { return isBrowser() ? localStorage.getItem(ORG_KEY) : null; }
+function isBrowser() {
+  return typeof window !== "undefined";
+}
+export function getSession(): Session | null {
+  if (!isBrowser()) return null;
+  try {
+    return JSON.parse(localStorage.getItem(SESSION_KEY) || "null") as Session | null;
+  } catch {
+    return null;
+  }
+}
+function saveSession(session: Session | null) {
+  if (!isBrowser()) return;
+  if (!session) {
+    localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(ORG_KEY);
+    return;
+  }
+  const next = {
+    ...session,
+    expires_at:
+      session.expires_at ??
+      (session.expires_in ? Math.floor(Date.now() / 1000) + session.expires_in : undefined),
+  };
+  localStorage.setItem(SESSION_KEY, JSON.stringify(next));
+}
+export function getCurrentUser() {
+  return getSession()?.user ?? null;
+}
+export function getOrganizationId() {
+  return isBrowser() ? localStorage.getItem(ORG_KEY) : null;
+}
 
-async function authRequest(path: string, body: Record<string, unknown>) { const response = await fetch(`${SUPABASE_URL}/auth/v1/${path}`, { method: "POST", headers: { apikey: SUPABASE_KEY, "Content-Type": "application/json" }, body: JSON.stringify(body) }); const data = await response.json().catch(() => ({})); if (!response.ok) throw new Error(data?.msg || data?.error_description || data?.message || "Falha de autenticação"); return data; }
-export async function signIn(email: string, password: string) { const data = await authRequest("token?grant_type=password", { email, password }); saveSession(data as Session); await ensureOrganization(); return data as Session; }
-export async function signUp(email: string, password: string, fullName?: string) { const data = await authRequest("signup", { email, password, data: { full_name: fullName || "" } }); if (data.access_token) { saveSession(data as Session); await ensureOrganization(); } return data; }
-export function signOut() { saveSession(null); }
-async function refreshSession() { const session = getSession(); if (!session?.refresh_token) return null; try { const data = await authRequest("token?grant_type=refresh_token", { refresh_token: session.refresh_token }); saveSession(data as Session); return data as Session; } catch { saveSession(null); return null; } }
-async function accessToken() { let session = getSession(); if (!session) return null; if (session.expires_at && session.expires_at <= Math.floor(Date.now()/1000) + 30) session = await refreshSession(); return session?.access_token ?? null; }
-export async function rest<T>(path: string, init: RequestInit = {}): Promise<T> { const token = await accessToken(); if (!token) throw new Error("Sessão expirada. Entre novamente."); const headers = new Headers(init.headers || {}); headers.set("apikey", SUPABASE_KEY); headers.set("Authorization", `Bearer ${token}`); if (!headers.has("Content-Type") && init.body) headers.set("Content-Type", "application/json"); const response = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { ...init, headers }); if (response.status === 401) { await refreshSession(); throw new Error("Sessão expirada. Atualize a página."); } if (!response.ok) { const data = await response.json().catch(() => ({})); throw new Error(data?.message || data?.details || "Erro ao acessar o banco"); } if (response.status === 204) return undefined as T; return response.json() as Promise<T>; }
+async function authRequest(path: string, body: Record<string, unknown>) {
+  const response = await fetch(`${SUPABASE_URL}/auth/v1/${path}`, {
+    method: "POST",
+    headers: { apikey: SUPABASE_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok)
+    throw new Error(
+      data?.msg || data?.error_description || data?.message || "Falha de autenticação",
+    );
+  return data;
+}
+export async function signIn(email: string, password: string) {
+  const data = await authRequest("token?grant_type=password", { email, password });
+  saveSession(data as Session);
+  await ensureOrganization();
+  return data as Session;
+}
+export async function signUp(email: string, password: string, fullName?: string) {
+  const data = await authRequest("signup", {
+    email,
+    password,
+    data: { full_name: fullName || "" },
+  });
+  if (data.access_token) {
+    saveSession(data as Session);
+    await ensureOrganization();
+  }
+  return data;
+}
+export function signOut() {
+  saveSession(null);
+}
+async function refreshSession() {
+  const session = getSession();
+  if (!session?.refresh_token) return null;
+  try {
+    const data = await authRequest("token?grant_type=refresh_token", {
+      refresh_token: session.refresh_token,
+    });
+    saveSession(data as Session);
+    return data as Session;
+  } catch {
+    saveSession(null);
+    return null;
+  }
+}
+async function accessToken() {
+  let session = getSession();
+  if (!session) return null;
+  if (session.expires_at && session.expires_at <= Math.floor(Date.now() / 1000) + 30)
+    session = await refreshSession();
+  return session?.access_token ?? null;
+}
+export async function rest<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const token = await accessToken();
+  if (!token) throw new Error("Sessão expirada. Entre novamente.");
+  const headers = new Headers(init.headers || {});
+  headers.set("apikey", SUPABASE_KEY);
+  headers.set("Authorization", `Bearer ${token}`);
+  if (!headers.has("Content-Type") && init.body) headers.set("Content-Type", "application/json");
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { ...init, headers });
+  if (response.status === 401) {
+    await refreshSession();
+    throw new Error("Sessão expirada. Atualize a página.");
+  }
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data?.message || data?.details || "Erro ao acessar o banco");
+  }
+  if (response.status === 204) return undefined as T;
+  return response.json() as Promise<T>;
+}
 
-export async function ensureOrganization() { const user = getCurrentUser(); if (!user) throw new Error("Usuário não autenticado"); const memberships = await rest<Array<{ organization_id: string; role: string }>>(`organization_members?user_id=eq.${user.id}&select=organization_id,role&limit=1`); if (memberships[0]) { if (isBrowser()) localStorage.setItem(ORG_KEY, memberships[0].organization_id); return memberships[0].organization_id; } const orgs = await rest<Array<{ id: string }>>("organizations?select=id", { method: "POST", headers: { Prefer: "return=representation" }, body: JSON.stringify({ name: "Papo de Produtor", created_by: user.id }) }); const orgId = orgs[0]?.id; if (!orgId) throw new Error("Não foi possível criar a organização"); await rest("organization_members", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ organization_id: orgId, user_id: user.id, role: "owner" }) }); await rest("profiles", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({ id: user.id, full_name: String(user.user_metadata?.["full_name"] || "") || null }) }).catch(() => undefined); if (isBrowser()) localStorage.setItem(ORG_KEY, orgId); return orgId; }
-export async function requireOrganization() { return getOrganizationId() || ensureOrganization(); }
+export async function ensureOrganization() {
+  const user = getCurrentUser();
+  if (!user) throw new Error("Usuário não autenticado");
+  const memberships = await rest<Array<{ organization_id: string; role: string }>>(
+    `organization_members?user_id=eq.${user.id}&select=organization_id,role&limit=1`,
+  );
+  if (memberships[0]) {
+    if (isBrowser()) localStorage.setItem(ORG_KEY, memberships[0].organization_id);
+    return memberships[0].organization_id;
+  }
+  const orgs = await rest<Array<{ id: string }>>("organizations?select=id", {
+    method: "POST",
+    headers: { Prefer: "return=representation" },
+    body: JSON.stringify({ name: "Papo de Produtor", created_by: user.id }),
+  });
+  const orgId = orgs[0]?.id;
+  if (!orgId) throw new Error("Não foi possível criar a organização");
+  await rest("organization_members", {
+    method: "POST",
+    headers: { Prefer: "return=minimal" },
+    body: JSON.stringify({ organization_id: orgId, user_id: user.id, role: "owner" }),
+  });
+  await rest("profiles", {
+    method: "POST",
+    headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+    body: JSON.stringify({
+      id: user.id,
+      full_name: String(user.user_metadata?.["full_name"] || "") || null,
+    }),
+  }).catch(() => undefined);
+  if (isBrowser()) localStorage.setItem(ORG_KEY, orgId);
+  return orgId;
+}
+export async function requireOrganization() {
+  return getOrganizationId() || ensureOrganization();
+}
