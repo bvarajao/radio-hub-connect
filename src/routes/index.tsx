@@ -10,8 +10,10 @@ import {
   completeAuthRedirect,
   getSession,
   resendSignupConfirmation,
+  sendPasswordReset,
   signIn,
   signUp,
+  updatePassword,
 } from "@/lib/supabase-rest";
 
 export const Route = createFileRoute("/")({ component: LoginPage });
@@ -34,16 +36,26 @@ function LoginPage() {
   const nav = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [name, setName] = useState("");
   const [create, setCreate] = useState(false);
+  const [recovery, setRecovery] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       try {
-        const confirmed = await completeAuthRedirect();
-        if (!cancelled && (confirmed || getSession())) {
+        const result = await completeAuthRedirect();
+        if (cancelled) return;
+        if (result === "recovery") {
+          setRecovery(true);
+          setCreate(false);
+          setPassword("");
+          setConfirmPassword("");
+          return;
+        }
+        if (result === "authenticated" || getSession()) {
           nav({ to: "/dashboard", replace: true });
         }
       } catch (err) {
@@ -63,6 +75,17 @@ function LoginPage() {
     e.preventDefault();
     setBusy(true);
     try {
+      if (recovery) {
+        if (password !== confirmPassword) {
+          toast.error("As senhas não conferem.");
+          return;
+        }
+        await updatePassword(password);
+        toast.success("Senha alterada com sucesso.");
+        nav({ to: "/dashboard", replace: true });
+        return;
+      }
+
       if (create) {
         const r = await signUp(email, password, name);
         if (!r.access_token) {
@@ -97,6 +120,29 @@ function LoginPage() {
     }
   }
 
+  async function forgotPassword() {
+    if (!email) {
+      toast.error("Digite seu e-mail para receber o link de recuperação.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await sendPasswordReset(email);
+      toast.success("Enviamos um link para redefinir sua senha.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Não foi possível enviar o link");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const title = recovery ? "Definir nova senha" : create ? "Criar primeiro acesso" : "Bem-vindo";
+  const subtitle = recovery
+    ? "Escolha uma nova senha para continuar."
+    : create
+      ? "Cadastre o administrador da Papo de Produtor."
+      : "Entre para gerenciar a operação.";
+
   return (
     <div className="grid min-h-screen lg:grid-cols-[1.05fr_1fr]">
       <div className="gradient-night hidden flex-col justify-between p-10 lg:flex">
@@ -109,13 +155,13 @@ function LoginPage() {
             Estoque, locações, devoluções e financeiro em um único painel.
           </p>
           <ul className="space-y-4">
-            {highlights.map(({ icon: Icon, title, text }) => (
-              <li key={title} className="flex gap-3">
+            {highlights.map(({ icon: Icon, title: itemTitle, text }) => (
+              <li key={itemTitle} className="flex gap-3">
                 <span className="grid h-9 w-9 place-items-center rounded-lg bg-sidebar-accent">
                   <Icon className="h-4.5 w-4.5 text-sidebar-primary" />
                 </span>
                 <span>
-                  <b className="block text-sm text-sidebar-foreground">{title}</b>
+                  <b className="block text-sm text-sidebar-foreground">{itemTitle}</b>
                   <span className="text-xs text-sidebar-foreground/60">{text}</span>
                 </span>
               </li>
@@ -130,17 +176,11 @@ function LoginPage() {
           <div className="mb-8 lg:hidden">
             <Logo />
           </div>
-          <h2 className="font-display text-2xl font-extrabold">
-            {create ? "Criar primeiro acesso" : "Bem-vindo"}
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {create
-              ? "Cadastre o administrador da Papo de Produtor."
-              : "Entre para gerenciar a operação."}
-          </p>
+          <h2 className="font-display text-2xl font-extrabold">{title}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
 
           <form className="mt-8 space-y-4" onSubmit={submit}>
-            {create && (
+            {create && !recovery && (
               <div className="space-y-1.5">
                 <Label>Nome</Label>
                 <Input
@@ -152,50 +192,90 @@ function LoginPage() {
               </div>
             )}
 
-            <div className="space-y-1.5">
-              <Label>E-mail</Label>
-              <Input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="h-11"
-                required
-              />
-            </div>
+            {!recovery && (
+              <div className="space-y-1.5">
+                <Label>E-mail</Label>
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="h-11"
+                  autoComplete="email"
+                  required
+                />
+              </div>
+            )}
 
             <div className="space-y-1.5">
-              <Label>Senha</Label>
+              <Label>{recovery ? "Nova senha" : "Senha"}</Label>
               <Input
                 type="password"
                 minLength={6}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="h-11"
+                autoComplete={recovery ? "new-password" : create ? "new-password" : "current-password"}
                 required
               />
             </div>
 
+            {recovery && (
+              <div className="space-y-1.5">
+                <Label>Confirmar nova senha</Label>
+                <Input
+                  type="password"
+                  minLength={6}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="h-11"
+                  autoComplete="new-password"
+                  required
+                />
+              </div>
+            )}
+
             <Button variant="hero" size="xl" className="w-full" disabled={busy}>
-              {busy ? "Aguarde..." : create ? "Criar acesso" : "Entrar"}
+              {busy
+                ? "Aguarde..."
+                : recovery
+                  ? "Salvar nova senha"
+                  : create
+                    ? "Criar acesso"
+                    : "Entrar"}
             </Button>
           </form>
 
-          <button
-            className="mt-5 w-full text-sm font-medium text-primary hover:underline"
-            onClick={() => setCreate((v) => !v)}
-            type="button"
-          >
-            {create ? "Já tenho acesso" : "Primeiro acesso? Criar conta"}
-          </button>
+          {!recovery && (
+            <>
+              <button
+                className="mt-5 w-full text-sm font-medium text-primary hover:underline"
+                onClick={() => setCreate((v) => !v)}
+                type="button"
+              >
+                {create ? "Já tenho acesso" : "Primeiro acesso? Criar conta"}
+              </button>
 
-          <button
-            className="mt-3 w-full text-xs text-muted-foreground hover:text-primary hover:underline"
-            onClick={resendConfirmation}
-            type="button"
-            disabled={busy}
-          >
-            Reenviar e-mail de confirmação
-          </button>
+              {!create && (
+                <button
+                  className="mt-3 w-full text-xs text-muted-foreground hover:text-primary hover:underline"
+                  onClick={forgotPassword}
+                  type="button"
+                  disabled={busy}
+                >
+                  Esqueci minha senha
+                </button>
+              )}
+
+              <button
+                className="mt-3 w-full text-xs text-muted-foreground hover:text-primary hover:underline"
+                onClick={resendConfirmation}
+                type="button"
+                disabled={busy}
+              >
+                Reenviar e-mail de confirmação
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
