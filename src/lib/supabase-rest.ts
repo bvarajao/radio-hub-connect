@@ -17,7 +17,9 @@ function isBrowser() {
 }
 
 function appOrigin() {
-  return isBrowser() ? window.location.origin : "https://radio-hub-connect-live-bvarajao.vercel.app";
+  return isBrowser()
+    ? window.location.origin
+    : "https://radio-hub-connect-live-bvarajao.vercel.app";
 }
 
 export function getSession(): Session | null {
@@ -118,7 +120,11 @@ export async function completeAuthRedirect() {
     expires_at: Math.floor(Date.now() / 1000) + expiresIn,
     user,
   });
-  window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+  window.history.replaceState(
+    {},
+    document.title,
+    window.location.pathname + window.location.search,
+  );
   await ensureOrganization();
   return true;
 }
