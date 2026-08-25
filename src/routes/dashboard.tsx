@@ -61,7 +61,10 @@ function Dashboard() {
       ativas: rentals.filter((r) => ["active", "late"].includes(r.status)).length,
       atrasadas: rentals.filter((r) => r.status === "late").length,
       faturamento: finance
-        .filter((f) => f.type === "income" && f.status !== "cancelled" && new Date(f.created_at) >= monthStart)
+        .filter(
+          (f) =>
+            f.type === "income" && f.status !== "cancelled" && new Date(f.created_at) >= monthStart,
+        )
         .reduce((s, f) => s + Number(f.amount), 0),
       areceber: finance
         .filter((f) => f.type === "income" && ["pending", "overdue"].includes(f.status))
@@ -73,37 +76,100 @@ function Dashboard() {
     <AppShell title="Dashboard">
       <PageHeader
         title="Visão geral da operação"
-        subtitle={loading ? "Carregando dados..." : "Situação atual do estoque, locações e financeiro"}
-        actions={<Button asChild variant="hero"><Link to="/locacoes/nova"><Plus className="h-4 w-4" /> Nova Locação</Link></Button>}
+        subtitle={
+          loading ? "Carregando dados..." : "Situação atual do estoque, locações e financeiro"
+        }
+        actions={
+          <Button asChild variant="hero">
+            <Link to="/locacoes/nova">
+              <Plus className="h-4 w-4" /> Nova Locação
+            </Link>
+          </Button>
+        }
       />
 
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="Rádios cadastrados" value={String(m.total)} icon={RadioTower} />
-        <StatCard label="Locados agora" value={String(m.locados)} icon={CalendarClock} tone="brand" />
-        <StatCard label="Disponíveis agora" value={String(m.disponiveis)} icon={CheckCircle2} tone="success" />
+        <StatCard
+          label="Locados agora"
+          value={String(m.locados)}
+          icon={CalendarClock}
+          tone="brand"
+        />
+        <StatCard
+          label="Disponíveis agora"
+          value={String(m.disponiveis)}
+          icon={CheckCircle2}
+          tone="success"
+        />
         <StatCard label="Em manutenção" value={String(m.manutencao)} icon={Wrench} tone="warning" />
-        <StatCard label="Faturamento do mês" value={brl(m.faturamento)} icon={CircleDollarSign} tone="success" />
+        <StatCard
+          label="Faturamento do mês"
+          value={brl(m.faturamento)}
+          icon={CircleDollarSign}
+          tone="success"
+        />
         <StatCard label="A receber" value={brl(m.areceber)} icon={Wallet} tone="danger" />
-        <StatCard label="Locações em andamento" value={String(m.ativas)} icon={CalendarClock} tone="info" />
-        <StatCard label="Devoluções atrasadas" value={String(m.atrasadas)} icon={AlertTriangle} tone="danger" />
+        <StatCard
+          label="Locações em andamento"
+          value={String(m.ativas)}
+          icon={CalendarClock}
+          tone="info"
+        />
+        <StatCard
+          label="Devoluções atrasadas"
+          value={String(m.atrasadas)}
+          icon={AlertTriangle}
+          tone="danger"
+        />
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
         <div className="surface-panel p-5">
-          <div className="flex items-center justify-between gap-3"><h2 className="font-display text-base font-bold">Locações em andamento</h2><Button asChild variant="ghost" size="sm"><Link to="/locacoes">Ver todas</Link></Button></div>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-display text-base font-bold">Locações em andamento</h2>
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/locacoes">Ver todas</Link>
+            </Button>
+          </div>
           <div className="mt-4 space-y-3">
-            {rentals.filter((r) => ["active", "late"].includes(r.status)).slice(0, 6).map((r) => (
-              <div key={r.id} className="rounded-xl border border-border p-3">
-                <div className="flex justify-between gap-3"><div><p className="font-semibold">{r.clients?.name || "Cliente"}</p><p className="text-xs text-muted-foreground">{r.code} · {r.event_name || "Sem evento"}</p></div><b>{brl(Number(r.total || 0))}</b></div>
-                <p className={`mt-2 text-xs ${r.status === "late" ? "font-semibold text-destructive" : "text-muted-foreground"}`}>{r.status === "late" ? "ATRASADA · " : ""}devolução {new Date(r.due_at).toLocaleString("pt-BR")}</p>
-              </div>
-            ))}
-            {!loading && !rentals.some((r) => ["active", "late"].includes(r.status)) && <p className="py-8 text-center text-sm text-muted-foreground">Nenhuma locação em andamento.</p>}
+            {rentals
+              .filter((r) => ["active", "late"].includes(r.status))
+              .slice(0, 6)
+              .map((r) => (
+                <div key={r.id} className="rounded-xl border border-border p-3">
+                  <div className="flex justify-between gap-3">
+                    <div>
+                      <p className="font-semibold">{r.clients?.name || "Cliente"}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {r.code} · {r.event_name || "Sem evento"}
+                      </p>
+                    </div>
+                    <b>{brl(Number(r.total || 0))}</b>
+                  </div>
+                  <p
+                    className={`mt-2 text-xs ${r.status === "late" ? "font-semibold text-destructive" : "text-muted-foreground"}`}
+                  >
+                    {r.status === "late" ? "ATRASADA · " : ""}devolução{" "}
+                    {new Date(r.due_at).toLocaleString("pt-BR")}
+                  </p>
+                </div>
+              ))}
+            {!loading && !rentals.some((r) => ["active", "late"].includes(r.status)) && (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                Nenhuma locação em andamento.
+              </p>
+            )}
           </div>
         </div>
 
         <div className="surface-panel p-5">
-          <div className="flex items-center justify-between gap-3"><h2 className="font-display text-base font-bold">Estoque e compromissos</h2><Button asChild variant="ghost" size="sm"><Link to="/radios">Gerenciar</Link></Button></div>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-display text-base font-bold">Estoque e compromissos</h2>
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/radios">Gerenciar</Link>
+            </Button>
+          </div>
           <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
             <Mini label="Disponíveis agora" value={m.disponiveis} />
             <Mini label="Locados agora" value={m.locados} />
@@ -117,5 +183,10 @@ function Dashboard() {
 }
 
 function Mini({ label, value }: { label: string; value: number }) {
-  return <div className="rounded-xl bg-secondary/50 p-4"><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 font-display text-2xl font-extrabold">{value}</p></div>;
+  return (
+    <div className="rounded-xl bg-secondary/50 p-4">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-1 font-display text-2xl font-extrabold">{value}</p>
+    </div>
+  );
 }

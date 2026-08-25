@@ -57,10 +57,10 @@ function ClientsPage() {
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
     return items.filter((c) => {
-      const text = `${c.name} ${c.document || ""} ${c.contact_name || ""} ${c.phone || ""} ${c.email || ""}`.toLowerCase();
+      const text =
+        `${c.name} ${c.document || ""} ${c.contact_name || ""} ${c.phone || ""} ${c.email || ""}`.toLowerCase();
       const matchesText = !q || text.includes(q);
-      const matchesStatus =
-        filter === "all" || (filter === "active" ? c.is_active : !c.is_active);
+      const matchesStatus = filter === "all" || (filter === "active" ? c.is_active : !c.is_active);
       return matchesText && matchesStatus;
     });
   }, [items, query, filter]);
@@ -68,7 +68,9 @@ function ClientsPage() {
   async function remove(c: OperationalClient) {
     try {
       const result = await removeClientSafely(c.id);
-      toast.success(result.archived ? "Cliente inativado; histórico preservado" : "Cliente excluído");
+      toast.success(
+        result.archived ? "Cliente inativado; histórico preservado" : "Cliente excluído",
+      );
       await load();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Não foi possível remover o cliente");
@@ -180,7 +182,12 @@ function ClientsPage() {
                       onConfirm={() => remove(c)}
                     />
                   ) : (
-                    <Button variant="ghost" size="icon" title="Reativar" onClick={() => void reactivate(c)}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="Reativar"
+                      onClick={() => void reactivate(c)}
+                    >
                       <RotateCcw className="h-4 w-4" />
                     </Button>
                   )}
@@ -307,19 +314,38 @@ function ClientDialog({
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label>Tipo</Label>
-            <Select value={f.type} onValueChange={(v) => setF({ ...f, type: v as "person" | "company" })}>
-              <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
+            <Select
+              value={f.type}
+              onValueChange={(v) => setF({ ...f, type: v as "person" | "company" })}
+            >
+              <SelectTrigger className="h-11">
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="company">Empresa</SelectItem>
                 <SelectItem value="person">Pessoa física</SelectItem>
               </SelectContent>
             </Select>
           </div>
-          <Field label={f.type === "person" ? "CPF" : "CNPJ"} value={f.document} set={(v) => setF({ ...f, document: v })} />
-          <Field label="Nome / Razão social" value={f.name} set={(v) => setF({ ...f, name: v })} wide />
+          <Field
+            label={f.type === "person" ? "CPF" : "CNPJ"}
+            value={f.document}
+            set={(v) => setF({ ...f, document: v })}
+          />
+          <Field
+            label="Nome / Razão social"
+            value={f.name}
+            set={(v) => setF({ ...f, name: v })}
+            wide
+          />
           <Field label="Telefone" value={f.phone} set={(v) => setF({ ...f, phone: v })} />
           <Field label="E-mail" value={f.email} set={(v) => setF({ ...f, email: v })} />
-          <Field label="Responsável" value={f.contact_name} set={(v) => setF({ ...f, contact_name: v })} wide />
+          <Field
+            label="Responsável"
+            value={f.contact_name}
+            set={(v) => setF({ ...f, contact_name: v })}
+            wide
+          />
           <Field label="Endereço" value={f.address} set={(v) => setF({ ...f, address: v })} wide />
           <div className="space-y-1.5 sm:col-span-2">
             <Label>Observações</Label>
@@ -327,7 +353,9 @@ function ClientDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+          <Button variant="outline" onClick={() => setOpen(false)}>
+            Cancelar
+          </Button>
           <Button variant="hero" onClick={save} disabled={busy}>
             {busy ? "Salvando..." : client ? "Salvar alterações" : "Salvar cliente"}
           </Button>
@@ -337,7 +365,17 @@ function ClientDialog({
   );
 }
 
-function Field({ label, value, set, wide }: { label: string; value: string; set: (v: string) => void; wide?: boolean }) {
+function Field({
+  label,
+  value,
+  set,
+  wide,
+}: {
+  label: string;
+  value: string;
+  set: (v: string) => void;
+  wide?: boolean;
+}) {
   return (
     <div className={`space-y-1.5 ${wide ? "sm:col-span-2" : ""}`}>
       <Label>{label}</Label>

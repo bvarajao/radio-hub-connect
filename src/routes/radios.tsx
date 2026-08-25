@@ -33,11 +33,7 @@ import {
   toRadioStatus,
   type DbRadioModel,
 } from "@/lib/live-data";
-import {
-  removeRadioSafely,
-  updateRadioRecord,
-  type OperationalRadio,
-} from "@/lib/operations";
+import { removeRadioSafely, updateRadioRecord, type OperationalRadio } from "@/lib/operations";
 
 export const Route = createFileRoute("/radios")({ component: RadiosPage });
 
@@ -179,21 +175,36 @@ function RadiosPage() {
                       {r.code}
                     </Link>
                     <p className="truncate text-xs text-muted-foreground">
-                      {r.radio_models ? `${r.radio_models.manufacturer} ${r.radio_models.model}` : "Sem modelo"}
+                      {r.radio_models
+                        ? `${r.radio_models.manufacturer} ${r.radio_models.model}`
+                        : "Sem modelo"}
                     </p>
                   </div>
                   <RadioStatusBadge status={toRadioStatus(r.status)} />
                 </div>
                 <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
                   <span>Série: {r.serial_number || "—"}</span>
-                  <span className="rounded-full border border-border px-2.5 py-1 font-bold text-foreground">{r.band}</span>
+                  <span className="rounded-full border border-border px-2.5 py-1 font-bold text-foreground">
+                    {r.band}
+                  </span>
                 </div>
                 <div className="mt-3 flex justify-end gap-1 border-t border-border pt-3">
-                  <Button variant="ghost" size="sm" onClick={() => { setEditing(r); setOpen(true); }}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setEditing(r);
+                      setOpen(true);
+                    }}
+                  >
                     <Pencil className="h-4 w-4" /> Editar
                   </Button>
                   <ConfirmAction
-                    trigger={<Button variant="ghost" size="sm"><Trash2 className="h-4 w-4 text-destructive" /> Remover</Button>}
+                    trigger={
+                      <Button variant="ghost" size="sm">
+                        <Trash2 className="h-4 w-4 text-destructive" /> Remover
+                      </Button>
+                    }
                     title="Remover rádio?"
                     description="Se já existir histórico de locação ou manutenção, o rádio será inativado em vez de apagado."
                     confirmLabel="Remover"
@@ -208,24 +219,55 @@ function RadiosPage() {
             <table className="w-full text-sm">
               <thead className="bg-secondary/60 text-xs uppercase text-muted-foreground">
                 <tr>
-                  <Th>Código</Th><Th>Modelo</Th><Th>Série</Th><Th>Faixa</Th><Th>Status</Th><Th>Ações</Th>
+                  <Th>Código</Th>
+                  <Th>Modelo</Th>
+                  <Th>Série</Th>
+                  <Th>Faixa</Th>
+                  <Th>Status</Th>
+                  <Th>Ações</Th>
                 </tr>
               </thead>
               <tbody>
                 {list.map((r) => (
                   <tr key={r.id} className="border-t border-border">
                     <td className="px-4 py-3">
-                      <Link to="/radios/$radioId" params={{ radioId: r.code }} className="font-display font-bold hover:text-primary">{r.code}</Link>
+                      <Link
+                        to="/radios/$radioId"
+                        params={{ radioId: r.code }}
+                        className="font-display font-bold hover:text-primary"
+                      >
+                        {r.code}
+                      </Link>
                     </td>
-                    <td className="px-4 py-3">{r.radio_models ? `${r.radio_models.manufacturer} ${r.radio_models.model}` : "—"}</td>
+                    <td className="px-4 py-3">
+                      {r.radio_models
+                        ? `${r.radio_models.manufacturer} ${r.radio_models.model}`
+                        : "—"}
+                    </td>
                     <td className="px-4 py-3 text-muted-foreground">{r.serial_number || "—"}</td>
                     <td className="px-4 py-3 font-semibold">{r.band}</td>
-                    <td className="px-4 py-3"><RadioStatusBadge status={toRadioStatus(r.status)} /></td>
+                    <td className="px-4 py-3">
+                      <RadioStatusBadge status={toRadioStatus(r.status)} />
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" title="Editar" onClick={() => { setEditing(r); setOpen(true); }}><Pencil className="h-4 w-4" /></Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Editar"
+                          onClick={() => {
+                            setEditing(r);
+                            setOpen(true);
+                          }}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
                         <ConfirmAction
-                          trigger={<Button variant="ghost" size="icon" title="Remover"><Trash2 className="h-4 w-4 text-destructive" /></Button>}
+                          trigger={
+                            <Button variant="ghost" size="icon" title="Remover">
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          }
                           title="Remover rádio?"
                           description="Rádios com histórico serão inativados para preservar rastreabilidade."
                           confirmLabel="Remover"
@@ -332,38 +374,72 @@ function RadioDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      {!radio && <DialogTrigger asChild><Button variant="hero"><Plus className="h-4 w-4" /> Novo Rádio</Button></DialogTrigger>}
+      {!radio && (
+        <DialogTrigger asChild>
+          <Button variant="hero">
+            <Plus className="h-4 w-4" /> Novo Rádio
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-lg">
-        <DialogHeader><DialogTitle>{radio ? "Editar rádio" : "Novo rádio"}</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>{radio ? "Editar rádio" : "Novo rádio"}</DialogTitle>
+        </DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Código patrimonial" value={f.code} set={(v) => setF({ ...f, code: v })} />
-          <Field label="Número de série" value={f.serial_number} set={(v) => setF({ ...f, serial_number: v })} />
+          <Field
+            label="Número de série"
+            value={f.serial_number}
+            set={(v) => setF({ ...f, serial_number: v })}
+          />
           <div className="space-y-1.5 sm:col-span-2">
             <Label>Modelo existente</Label>
-            <Select value={f.model_id || "novo"} onValueChange={(v) => setF({ ...f, model_id: v === "novo" ? "" : v })}>
-              <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
+            <Select
+              value={f.model_id || "novo"}
+              onValueChange={(v) => setF({ ...f, model_id: v === "novo" ? "" : v })}
+            >
+              <SelectTrigger className="h-11">
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="novo">Cadastrar novo modelo</SelectItem>
-                {models.map((m) => <SelectItem key={m.id} value={m.id}>{m.manufacturer} {m.model}</SelectItem>)}
+                {models.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {m.manufacturer} {m.model}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
-          {!f.model_id && <>
-            <Field label="Fabricante" value={f.manufacturer} set={(v) => setF({ ...f, manufacturer: v })} />
-            <Field label="Modelo" value={f.model} set={(v) => setF({ ...f, model: v })} />
-          </>}
+          {!f.model_id && (
+            <>
+              <Field
+                label="Fabricante"
+                value={f.manufacturer}
+                set={(v) => setF({ ...f, manufacturer: v })}
+              />
+              <Field label="Modelo" value={f.model} set={(v) => setF({ ...f, model: v })} />
+            </>
+          )}
           <div className="space-y-1.5">
             <Label>Faixa</Label>
             <Select value={f.band} onValueChange={(v) => setF({ ...f, band: v as "VHF" | "UHF" })}>
-              <SelectTrigger className="h-11"><SelectValue placeholder="Selecione" /></SelectTrigger>
-              <SelectContent><SelectItem value="VHF">VHF</SelectItem><SelectItem value="UHF">UHF</SelectItem></SelectContent>
+              <SelectTrigger className="h-11">
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="VHF">VHF</SelectItem>
+                <SelectItem value="UHF">UHF</SelectItem>
+              </SelectContent>
             </Select>
           </div>
           {radio && !["rented", "reserved"].includes(radio.status) && (
             <div className="space-y-1.5">
               <Label>Status</Label>
               <Select value={f.status} onValueChange={(v) => setF({ ...f, status: v })}>
-                <SelectTrigger className="h-11"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-11">
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="available">Disponível</SelectItem>
                   <SelectItem value="maintenance">Manutenção</SelectItem>
@@ -373,11 +449,18 @@ function RadioDialog({
               </Select>
             </div>
           )}
-          <div className="space-y-1.5 sm:col-span-2"><Label>Observações</Label><Textarea value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} /></div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label>Observações</Label>
+            <Textarea value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} />
+          </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-          <Button variant="hero" onClick={save} disabled={busy}>{busy ? "Salvando..." : radio ? "Salvar alterações" : "Salvar rádio"}</Button>
+          <Button variant="outline" onClick={() => setOpen(false)}>
+            Cancelar
+          </Button>
+          <Button variant="hero" onClick={save} disabled={busy}>
+            {busy ? "Salvando..." : radio ? "Salvar alterações" : "Salvar rádio"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -385,7 +468,12 @@ function RadioDialog({
 }
 
 function Field({ label, value, set }: { label: string; value: string; set: (v: string) => void }) {
-  return <div className="space-y-1.5"><Label>{label}</Label><Input value={value} onChange={(e) => set(e.target.value)} className="h-11" /></div>;
+  return (
+    <div className="space-y-1.5">
+      <Label>{label}</Label>
+      <Input value={value} onChange={(e) => set(e.target.value)} className="h-11" />
+    </div>
+  );
 }
 function Th({ children }: { children: React.ReactNode }) {
   return <th className="px-4 py-3 text-left font-semibold">{children}</th>;
