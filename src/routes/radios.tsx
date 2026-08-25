@@ -330,9 +330,18 @@ function RadioDialog({
   }, [radio, open]);
 
   async function save() {
-    if (!f.code.trim()) return toast.error("Informe o código patrimonial");
-    if (!f.band) return toast.error("Selecione VHF ou UHF");
-    if (!f.model_id && !f.model.trim()) return toast.error("Informe o modelo do rádio");
+    if (!f.code.trim()) {
+      toast.error("Informe o código patrimonial");
+      return;
+    }
+    if (!f.band) {
+      toast.error("Selecione VHF ou UHF");
+      return;
+    }
+    if (!f.model_id && !f.model.trim()) {
+      toast.error("Informe o modelo do rádio");
+      return;
+    }
 
     setBusy(true);
     try {

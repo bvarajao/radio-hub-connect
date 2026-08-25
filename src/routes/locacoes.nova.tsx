@@ -114,11 +114,19 @@ function NewRental() {
 
   function next() {
     if (step === 0) {
-      if (!clientId || !pickup || !due) return toast.error("Selecione o cliente e o período");
-      if (new Date(due) <= new Date(pickup))
-        return toast.error("A devolução precisa ser posterior à retirada");
+      if (!clientId || !pickup || !due) {
+        toast.error("Selecione o cliente e o período");
+        return;
+      }
+      if (new Date(due) <= new Date(pickup)) {
+        toast.error("A devolução precisa ser posterior à retirada");
+        return;
+      }
     }
-    if (step === 1 && !selected.length) return toast.error("Selecione pelo menos um rádio");
+    if (step === 1 && !selected.length) {
+      toast.error("Selecione pelo menos um rádio");
+      return;
+    }
     setStep((s) => Math.min(2, s + 1));
   }
 

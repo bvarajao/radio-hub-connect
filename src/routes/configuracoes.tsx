@@ -53,7 +53,10 @@ function SettingsPage() {
   }, []);
 
   async function saveOrg() {
-    if (!form.name?.trim()) return toast.error("Informe o nome da empresa");
+    if (!form.name?.trim()) {
+      toast.error("Informe o nome da empresa");
+      return;
+    }
     try {
       const rows = await updateOrganization({
         name: form.name.trim(),
@@ -281,9 +284,14 @@ function AccessoryDialog({
   }, [item, open]);
 
   async function save() {
-    if (!f.name.trim()) return toast.error("Informe o nome do acessório");
-    if (Number(f.stock_total) < 0 || Number(f.unit_cost) < 0)
-      return toast.error("Quantidade e valor não podem ser negativos");
+    if (!f.name.trim()) {
+      toast.error("Informe o nome do acessório");
+      return;
+    }
+    if (Number(f.stock_total) < 0 || Number(f.unit_cost) < 0) {
+      toast.error("Quantidade e valor não podem ser negativos");
+      return;
+    }
     setBusy(true);
     const payload = {
       name: f.name.trim(),

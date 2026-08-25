@@ -94,17 +94,22 @@ function ReturnCheck() {
     );
 
   async function finish() {
-    if (busy) return;
-    if (checked !== radios.length) return toast.error("Confira todos os rádios antes de finalizar");
+    if (busy || !rental) return;
+    const currentRental = rental;
+    if (checked !== radios.length) {
+      toast.error("Confira todos os rádios antes de finalizar");
+      return;
+    }
     for (const accessory of accessories) {
       const returned = accessoryReturns[accessory.accessory_id];
       if (returned == null || returned < 0 || returned > accessory.quantity) {
-        return toast.error(`Confira a quantidade de ${accessory.accessories?.name || "acessório"}`);
+        toast.error(`Confira a quantidade de ${accessory.accessories?.name || "acessório"}`);
+        return;
       }
     }
     setBusy(true);
     try {
-      await saveReturnOperational(rental, states, accessoryReturns, notes.trim());
+      await saveReturnOperational(currentRental, states, accessoryReturns, notes.trim());
       toast.success(
         accessoryMissing
           ? `Devolução finalizada com ${accessoryMissing} acessório(s) faltando`

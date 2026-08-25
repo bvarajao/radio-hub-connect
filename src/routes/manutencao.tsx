@@ -183,7 +183,7 @@ function MaintenancePage() {
       ) : (
         <div className="grid gap-3">
           {filtered.map((m) => {
-            const info = statusInfo[m.status] ?? statusInfo.open!;
+            const info = statusInfo[m.status] ?? statusInfo["open"]!;
             return (
               <article key={m.id} className="surface-panel p-4">
                 <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
@@ -273,8 +273,10 @@ function MaintenanceDialog({
   }, [item, open]);
 
   async function save() {
-    if (!f.radio_id || !f.issue.trim())
-      return toast.error("Selecione o rádio e informe o problema");
+    if (!f.radio_id || !f.issue.trim()) {
+      toast.error("Selecione o rádio e informe o problema");
+      return;
+    }
     setBusy(true);
     const payload = {
       radio_id: f.radio_id,

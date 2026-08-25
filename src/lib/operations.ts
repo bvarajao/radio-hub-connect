@@ -224,9 +224,9 @@ export async function listFinanceOperational() {
 
 export async function updateFinanceRecord(id: string, data: Record<string, unknown>) {
   const next = { ...data };
-  if (data.status === "paid" && !data.paid_at) next.paid_at = new Date().toISOString();
-  if (data.status !== "paid" && Object.prototype.hasOwnProperty.call(data, "status"))
-    next.paid_at = null;
+  if (data["status"] === "paid" && !data["paid_at"]) next["paid_at"] = new Date().toISOString();
+  if (data["status"] !== "paid" && Object.prototype.hasOwnProperty.call(data, "status"))
+    next["paid_at"] = null;
   return rest<OperationalFinance[]>(`financial_transactions?id=eq.${id}&select=*`, {
     method: "PATCH",
     headers: { Prefer: "return=representation" },
@@ -255,11 +255,11 @@ export async function updateMaintenanceRecord(id: string, data: Record<string, u
   if (!current) throw new Error("Ordem de manutenção não encontrada.");
 
   const next = { ...data };
-  const status = String(data.status ?? current.status);
-  if (["completed", "cancelled"].includes(status) && !data.completed_at) {
-    next.completed_at = new Date().toISOString();
+  const status = String(data["status"] ?? current.status);
+  if (["completed", "cancelled"].includes(status) && !data["completed_at"]) {
+    next["completed_at"] = new Date().toISOString();
   }
-  if (openMaintenanceStatuses.has(status)) next.completed_at = null;
+  if (openMaintenanceStatuses.has(status)) next["completed_at"] = null;
 
   const rows = await rest<DbMaintenance[]>(`maintenance_orders?id=eq.${id}&select=*`, {
     method: "PATCH",
@@ -300,7 +300,7 @@ export async function removeMaintenanceRecord(item: DbMaintenance) {
 }
 
 export async function createMaintenanceOperational(data: Record<string, unknown>) {
-  const radioId = String(data.radio_id || "");
+  const radioId = String(data["radio_id"] || "");
   if (!radioId) throw new Error("Selecione o rádio.");
   const radios = await rest<Array<{ status: string }>>(
     `radios?id=eq.${radioId}&select=status&limit=1`,

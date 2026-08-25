@@ -381,8 +381,10 @@ function FinanceDialog({
   }, [item, open]);
 
   async function save() {
-    if (!f.description.trim() || Number(f.amount) <= 0)
-      return toast.error("Informe descrição e valor maior que zero");
+    if (!f.description.trim() || Number(f.amount) <= 0) {
+      toast.error("Informe descrição e valor maior que zero");
+      return;
+    }
     setBusy(true);
     const payload = {
       type: f.type,

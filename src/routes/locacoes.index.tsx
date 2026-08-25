@@ -387,12 +387,20 @@ function EditRentalDialog({
   const total = Math.max(0, subtotal - discount + surcharge);
 
   async function save() {
-    if (!f.client_id || !selected.length)
-      return toast.error("Selecione o cliente e pelo menos um rádio");
-    if (new Date(f.due) <= new Date(f.pickup))
-      return toast.error("A devolução precisa ser posterior à retirada");
-    if (selected.some((id) => blocked.has(id)))
-      return toast.error("Há rádio selecionado com conflito neste período");
+    if (!rental) return;
+    const currentRental = rental;
+    if (!f.client_id || !selected.length) {
+      toast.error("Selecione o cliente e pelo menos um rádio");
+      return;
+    }
+    if (new Date(f.due) <= new Date(f.pickup)) {
+      toast.error("A devolução precisa ser posterior à retirada");
+      return;
+    }
+    if (selected.some((id) => blocked.has(id))) {
+      toast.error("Há rádio selecionado com conflito neste período");
+      return;
+    }
     setBusy(true);
     try {
       const data = {
@@ -414,10 +422,10 @@ function EditRentalDialog({
         deposit_amount: Math.min(Math.max(Number(f.deposit || 0), 0), total),
         notes: f.notes.trim() || null,
       };
-      await updateRentalOperational(rental, data);
+      await updateRentalOperational(currentRental, data);
       await replaceRentalRadios(
         {
-          ...rental,
+          ...currentRental,
           pickup_at: data.pickup_at,
           due_at: data.due_at,
           status:
