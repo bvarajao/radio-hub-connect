@@ -1,0 +1,27 @@
+name: Format audited application
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/format-audit.yml
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bunx prettier --write src
+      - name: Commit formatting
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src
+          git diff --cached --quiet || (git commit -m "style: format operational audit changes" && git push)
