@@ -315,10 +315,7 @@ function NewRadioDialog({
 
           <div className="space-y-1.5 sm:col-span-2">
             <Label>Faixa</Label>
-            <Select
-              value={f.band}
-              onValueChange={(v) => setF({ ...f, band: v as "VHF" | "UHF" })}
-            >
+            <Select value={f.band} onValueChange={(v) => setF({ ...f, band: v as "VHF" | "UHF" })}>
               <SelectTrigger className="h-11">
                 <SelectValue placeholder="Selecione VHF ou UHF" />
               </SelectTrigger>
