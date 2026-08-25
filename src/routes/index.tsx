@@ -6,9 +6,16 @@ import { Logo } from "@/components/brand/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { getSession, signIn, signUp } from "@/lib/supabase-rest";
+import {
+  completeAuthRedirect,
+  getSession,
+  resendSignupConfirmation,
+  signIn,
+  signUp,
+} from "@/lib/supabase-rest";
 
 export const Route = createFileRoute("/")({ component: LoginPage });
+
 const highlights = [
   { icon: Zap, title: "Locação em 1 clique", text: "Do dashboard direto para uma nova locação." },
   {
@@ -22,6 +29,7 @@ const highlights = [
     text: "Checklist rápido e registro de avarias.",
   },
 ];
+
 function LoginPage() {
   const nav = useNavigate();
   const [email, setEmail] = useState("");
@@ -29,9 +37,26 @@ function LoginPage() {
   const [name, setName] = useState("");
   const [create, setCreate] = useState(false);
   const [busy, setBusy] = useState(false);
+
   useEffect(() => {
-    if (getSession()) nav({ to: "/dashboard", replace: true });
+    let cancelled = false;
+    void (async () => {
+      try {
+        const confirmed = await completeAuthRedirect();
+        if (!cancelled && (confirmed || getSession())) {
+          nav({ to: "/dashboard", replace: true });
+        }
+      } catch (err) {
+        if (!cancelled) {
+          toast.error(err instanceof Error ? err.message : "Não foi possível concluir a confirmação");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [nav]);
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
@@ -43,7 +68,9 @@ function LoginPage() {
           setCreate(false);
           return;
         }
-      } else await signIn(email, password);
+      } else {
+        await signIn(email, password);
+      }
       nav({ to: "/dashboard", replace: true });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Não foi possível entrar");
@@ -51,6 +78,23 @@ function LoginPage() {
       setBusy(false);
     }
   }
+
+  async function resendConfirmation() {
+    if (!email) {
+      toast.error("Digite seu e-mail primeiro.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await resendSignupConfirmation(email);
+      toast.success("Novo e-mail de confirmação enviado.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Não foi possível reenviar o e-mail");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="grid min-h-screen lg:grid-cols-[1.05fr_1fr]">
       <div className="gradient-night hidden flex-col justify-between p-10 lg:flex">
@@ -78,6 +122,7 @@ function LoginPage() {
         </div>
         <p className="text-xs text-sidebar-foreground/40">© 2026 Papo de Produtor</p>
       </div>
+
       <div className="flex items-center justify-center px-5 py-12">
         <div className="w-full max-w-sm">
           <div className="mb-8 lg:hidden">
@@ -91,6 +136,7 @@ function LoginPage() {
               ? "Cadastre o administrador da Papo de Produtor."
               : "Entre para gerenciar a operação."}
           </p>
+
           <form className="mt-8 space-y-4" onSubmit={submit}>
             {create && (
               <div className="space-y-1.5">
@@ -103,6 +149,7 @@ function LoginPage() {
                 />
               </div>
             )}
+
             <div className="space-y-1.5">
               <Label>E-mail</Label>
               <Input
@@ -113,6 +160,7 @@ function LoginPage() {
                 required
               />
             </div>
+
             <div className="space-y-1.5">
               <Label>Senha</Label>
               <Input
@@ -124,15 +172,27 @@ function LoginPage() {
                 required
               />
             </div>
+
             <Button variant="hero" size="xl" className="w-full" disabled={busy}>
               {busy ? "Aguarde..." : create ? "Criar acesso" : "Entrar"}
             </Button>
           </form>
+
           <button
             className="mt-5 w-full text-sm font-medium text-primary hover:underline"
             onClick={() => setCreate((v) => !v)}
+            type="button"
           >
             {create ? "Já tenho acesso" : "Primeiro acesso? Criar conta"}
+          </button>
+
+          <button
+            className="mt-3 w-full text-xs text-muted-foreground hover:text-primary hover:underline"
+            onClick={resendConfirmation}
+            type="button"
+            disabled={busy}
+          >
+            Reenviar e-mail de confirmação
           </button>
         </div>
       </div>
