@@ -69,39 +69,13 @@ jobs:
             );
           }
           '''
-          if marker not in s:
-              raise SystemExit('deleteRows marker not found')
-          s = s.replace(marker, helper, 1)
+          if 'async function refreshRadioOperationalStatuses' not in s:
+              if marker not in s:
+                  raise SystemExit('deleteRows marker not found')
+              s = s.replace(marker, helper, 1)
 
-          old = '''    if (!others.length) {
-              const radioRows = await rest<Array<{ status: string }>>(`radios?id=eq.${current.radio_id}&select=status&limit=1`);
-              if (radioRows[0]?.status === "maintenance") await updateRadioRecord(current.radio_id, { status: "available" });
-            }
-          }
-          '''
-          new = '''    if (!others.length) {
-              await refreshRadioOperationalStatuses([current.radio_id]);
-            }
-          }
-          '''
-          if old not in s:
-              raise SystemExit('maintenance completion marker not found')
-          s = s.replace(old, new, 1)
-
-          old = '''  if (!others.length) {
-            const radioRows = await rest<Array<{ status: string }>>(`radios?id=eq.${item.radio_id}&select=status&limit=1`);
-            if (radioRows[0]?.status === "maintenance") await updateRadioRecord(item.radio_id, { status: "available" });
-          }
-          '''
-          new = '''  if (!others.length) {
-            await refreshRadioOperationalStatuses([item.radio_id]);
-          }
-          '''
-          if old not in s:
-              raise SystemExit('maintenance delete marker not found')
-          s = s.replace(old, new, 1)
-
-          old = '''    if (links.length) {
+          replacements = [
+          ('''    if (links.length) {
               const radioIds = [...new Set(links.map((x) => x.radio_id))];
               await rest(`radios?id=in.(${inFilter(radioIds)})&status=eq.available`, {
                 method: "PATCH",
@@ -109,35 +83,23 @@ jobs:
                 body: JSON.stringify({ status: "rented" }),
               });
             }
-          }
-          '''
-          new = '''    if (links.length) {
+          ''', '''    if (links.length) {
               const radioIds = [...new Set(links.map((x) => x.radio_id))];
               await refreshRadioOperationalStatuses(radioIds);
             }
-          }
-          '''
-          if old not in s:
-              raise SystemExit('sync start marker not found')
-          s = s.replace(old, new, 1)
-
-          old = '''  if (radioIds.length) {
+          '''),
+          ('''  if (radioIds.length) {
             await rest(`radios?id=in.(${inFilter(radioIds)})`, {
               method: "PATCH",
               headers: { Prefer: "return=minimal" },
               body: JSON.stringify({ status: status === "reserved" ? "available" : "rented" }),
             });
           }
-          '''
-          new = '''  if (radioIds.length) {
+          ''', '''  if (radioIds.length) {
             await refreshRadioOperationalStatuses(radioIds);
           }
-          '''
-          if old not in s:
-              raise SystemExit('update rental status marker not found')
-          s = s.replace(old, new, 1)
-
-          old = '''  if (removed.length) {
+          '''),
+          ('''  if (removed.length) {
             await deleteRows(`rental_radios?rental_id=eq.${rental.id}&radio_id=in.(${inFilter(removed)})`);
             await rest(`radios?id=in.(${inFilter(removed)})&status=in.(rented,reserved)`, {
               method: "PATCH",
@@ -145,16 +107,24 @@ jobs:
               body: JSON.stringify({ status: "available" }),
             });
           }
-          '''
-          new = '''  if (removed.length) {
+          ''', '''  if (removed.length) {
             await deleteRows(`rental_radios?rental_id=eq.${rental.id}&radio_id=in.(${inFilter(removed)})`);
           }
-          '''
-          if old not in s:
-              raise SystemExit('replace removed marker not found')
-          s = s.replace(old, new, 1)
-
-          old = '''    if (["active", "late"].includes(rental.status)) {
+          '''),
+          ('''  if (added.length) {
+            await rest("rental_radios", {
+              method: "POST",
+              headers: { Prefer: "return=minimal" },
+              body: JSON.stringify(
+                added.map((radioId) => ({
+                  rental_id: rental.id,
+                  radio_id: radioId,
+                  daily_rate: 0,
+                  checkout_condition: "ok",
+                })),
+              ),
+            });
+            if (["active", "late"].includes(rental.status)) {
               await rest(`radios?id=in.(${inFilter(added)})`, {
                 method: "PATCH",
                 headers: { Prefer: "return=minimal" },
@@ -162,39 +132,26 @@ jobs:
               });
             }
           }
+          ''', '''  if (added.length) {
+            await rest("rental_radios", {
+              method: "POST",
+              headers: { Prefer: "return=minimal" },
+              body: JSON.stringify(
+                added.map((radioId) => ({
+                  rental_id: rental.id,
+                  radio_id: radioId,
+                  daily_rate: 0,
+                  checkout_condition: "ok",
+                })),
+              ),
+            });
           }
-          '''
-          new = '''  }
 
-            if (removed.length || added.length) {
-              await refreshRadioOperationalStatuses([...removed, ...added]);
-            }
+          if (removed.length || added.length) {
+            await refreshRadioOperationalStatuses([...removed, ...added]);
           }
-          '''
-          if old not in s:
-              # tolerate prettier's indentation only by trying a narrower replacement
-              old2 = '''    if (["active", "late"].includes(rental.status)) {
-              await rest(`radios?id=in.(${inFilter(added)})`, {
-                method: "PATCH",
-                headers: { Prefer: "return=minimal" },
-                body: JSON.stringify({ status: "rented" }),
-              });
-            }
-          }
-          '''
-              new2 = '''  }
-
-            if (removed.length || added.length) {
-              await refreshRadioOperationalStatuses([...removed, ...added]);
-            }
-          '''
-              if old2 not in s:
-                  raise SystemExit('replace added marker not found')
-              s = s.replace(old2, new2, 1)
-          else:
-              s = s.replace(old, new, 1)
-
-          old = '''  const radioIds = (rental.rental_radios || []).map((r) => r.radio_id);
+          '''),
+          ('''  const radioIds = (rental.rental_radios || []).map((r) => r.radio_id);
           if (radioIds.length) {
             await rest(`radios?id=in.(${inFilter(radioIds)})&status=in.(rented,reserved)`, {
               method: "PATCH",
@@ -202,15 +159,17 @@ jobs:
               body: JSON.stringify({ status: "available" }),
             });
           }
-          '''
-          new = '''  const radioIds = (rental.rental_radios || []).map((r) => r.radio_id);
+          ''', '''  const radioIds = (rental.rental_radios || []).map((r) => r.radio_id);
           if (radioIds.length) {
             await refreshRadioOperationalStatuses(radioIds);
           }
-          '''
-          if old not in s:
-              raise SystemExit('cancel marker not found')
-          s = s.replace(old, new, 1)
+          '''),
+          ]
+
+          for old, new in replacements:
+              if old not in s:
+                  raise SystemExit('expected rental status block not found')
+              s = s.replace(old, new, 1)
 
           p.write_text(s)
           PY
