@@ -214,7 +214,9 @@ function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="h-11"
-                autoComplete={recovery ? "new-password" : create ? "new-password" : "current-password"}
+                autoComplete={
+                  recovery ? "new-password" : create ? "new-password" : "current-password"
+                }
                 required
               />
             </div>
