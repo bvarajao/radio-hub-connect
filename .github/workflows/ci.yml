@@ -15,45 +15,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Repair generated integration code
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          def replace(path, old, new):
-              p = Path(path)
-              s = p.read_text()
-              s2 = s.replace(old, new)
-              if s2 != s:
-                  p.write_text(s2)
-
-          for name in [
-              'src/routes/clientes.tsx',
-              'src/routes/configuracoes.tsx',
-              'src/routes/financeiro.tsx',
-              'src/routes/manutencao.tsx',
-              'src/routes/radios.tsx',
-          ]:
-              replace(name, 'useEffect(load,[]);', 'useEffect(()=>{void load();},[]);')
-
-          replace('src/lib/live-data.ts', 'if(data.radio_id) await updateRadio(String(data.radio_id),{status:"maintenance"});', 'if(data["radio_id"]) await updateRadio(String(data["radio_id"]),{status:"maintenance"});')
-          replace('src/lib/supabase-rest.ts', 'user.user_metadata?.full_name', 'user.user_metadata?.["full_name"]')
-          replace('src/routes/manutencao.tsx', 'const info=statusInfo[m.status]||statusInfo.open;', 'const info=statusInfo[m.status] ?? statusInfo["open"]!;')
-          replace('src/routes/radios.tsx', 'onClick={()=>setStatus(v)}', 'onClick={()=>setStatus(v!)}')
-          replace('src/routes/financeiro.tsx', 'key={v} value={v}', 'key={v!} value={v!}')
-          PY
-          if ! git diff --quiet; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add src
-            git commit -m "fix: satisfy strict TypeScript checks"
-            git push
-          fi
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
       - name: Install dependencies
         run: bun install --frozen-lockfile
+      - name: Format source
+        run: |
+          bun run format
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add .
+            git commit -m "style: format application"
+            git push
+          fi
       - name: Type check
         run: bunx tsc --noEmit
       - name: Build
