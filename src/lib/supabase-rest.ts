@@ -15,6 +15,11 @@ type Session = {
 function isBrowser() {
   return typeof window !== "undefined";
 }
+
+function appOrigin() {
+  return isBrowser() ? window.location.origin : "https://radio-hub-connect-live-bvarajao.vercel.app";
+}
+
 export function getSession(): Session | null {
   if (!isBrowser()) return null;
   try {
@@ -23,6 +28,7 @@ export function getSession(): Session | null {
     return null;
   }
 }
+
 function saveSession(session: Session | null) {
   if (!isBrowser()) return;
   if (!session) {
@@ -38,9 +44,11 @@ function saveSession(session: Session | null) {
   };
   localStorage.setItem(SESSION_KEY, JSON.stringify(next));
 }
+
 export function getCurrentUser() {
   return getSession()?.user ?? null;
 }
+
 export function getOrganizationId() {
   return isBrowser() ? localStorage.getItem(ORG_KEY) : null;
 }
@@ -58,14 +66,26 @@ async function authRequest(path: string, body: Record<string, unknown>) {
     );
   return data;
 }
+
+async function fetchUser(accessToken: string): Promise<AuthUser> {
+  const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${accessToken}` },
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data?.message || "Não foi possível carregar o usuário");
+  return data as AuthUser;
+}
+
 export async function signIn(email: string, password: string) {
   const data = await authRequest("token?grant_type=password", { email, password });
   saveSession(data as Session);
   await ensureOrganization();
   return data as Session;
 }
+
 export async function signUp(email: string, password: string, fullName?: string) {
-  const data = await authRequest("signup", {
+  const redirectTo = encodeURIComponent(`${appOrigin()}/`);
+  const data = await authRequest(`signup?redirect_to=${redirectTo}`, {
     email,
     password,
     data: { full_name: fullName || "" },
@@ -76,9 +96,37 @@ export async function signUp(email: string, password: string, fullName?: string)
   }
   return data;
 }
+
+export async function resendSignupConfirmation(email: string) {
+  const redirectTo = encodeURIComponent(`${appOrigin()}/`);
+  return authRequest(`resend?redirect_to=${redirectTo}`, { type: "signup", email });
+}
+
+export async function completeAuthRedirect() {
+  if (!isBrowser() || !window.location.hash) return false;
+  const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const accessToken = params.get("access_token");
+  const refreshToken = params.get("refresh_token");
+  if (!accessToken || !refreshToken) return false;
+
+  const expiresIn = Number(params.get("expires_in") || "3600");
+  const user = await fetchUser(accessToken);
+  saveSession({
+    access_token: accessToken,
+    refresh_token: refreshToken,
+    expires_in: expiresIn,
+    expires_at: Math.floor(Date.now() / 1000) + expiresIn,
+    user,
+  });
+  window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+  await ensureOrganization();
+  return true;
+}
+
 export function signOut() {
   saveSession(null);
 }
+
 async function refreshSession() {
   const session = getSession();
   if (!session?.refresh_token) return null;
@@ -93,6 +141,7 @@ async function refreshSession() {
     return null;
   }
 }
+
 async function accessToken() {
   let session = getSession();
   if (!session) return null;
@@ -100,6 +149,7 @@ async function accessToken() {
     session = await refreshSession();
   return session?.access_token ?? null;
 }
+
 export async function rest<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = await accessToken();
   if (!token) throw new Error("Sessão expirada. Entre novamente.");
@@ -153,6 +203,7 @@ export async function ensureOrganization() {
   if (isBrowser()) localStorage.setItem(ORG_KEY, orgId);
   return orgId;
 }
+
 export async function requireOrganization() {
   return getOrganizationId() || ensureOrganization();
 }
