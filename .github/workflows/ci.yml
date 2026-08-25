@@ -7,11 +7,38 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Repair malformed dialog markup
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          files = [
+              'src/routes/radios.tsx',
+              'src/routes/financeiro.tsx',
+              'src/routes/manutencao.tsx',
+              'src/routes/configuracoes.tsx',
+          ]
+          for name in files:
+              p = Path(name)
+              s = p.read_text()
+              s2 = s.replace('</DialogFooter></Dialog>}', '</DialogFooter></DialogContent></Dialog>}')
+              if s2 != s:
+                  p.write_text(s2)
+          PY
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add src/routes/radios.tsx src/routes/financeiro.tsx src/routes/manutencao.tsx src/routes/configuracoes.tsx
+            git commit -m "fix: close dialog content components"
+            git push
+          fi
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
