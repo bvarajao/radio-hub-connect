@@ -363,7 +363,9 @@ function RadioDialog({
         band: f.band,
         notes: f.notes.trim() || null,
         battery_status: "unknown",
-        ...(radio && !["rented", "reserved"].includes(radio.status) ? { status: f.status } : {}),
+        ...(radio && !["rented", "reserved", "maintenance"].includes(radio.status)
+          ? { status: f.status }
+          : {}),
         ...(!radio ? { status: "available" } : {}),
       };
 
@@ -442,7 +444,7 @@ function RadioDialog({
               </SelectContent>
             </Select>
           </div>
-          {radio && !["rented", "reserved"].includes(radio.status) && (
+          {radio && !["rented", "reserved", "maintenance"].includes(radio.status) && (
             <div className="space-y-1.5">
               <Label>Status</Label>
               <Select value={f.status} onValueChange={(v) => setF({ ...f, status: v })}>
@@ -451,11 +453,16 @@ function RadioDialog({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="available">Disponível</SelectItem>
-                  <SelectItem value="maintenance">Manutenção</SelectItem>
                   <SelectItem value="inactive">Inativo</SelectItem>
                   <SelectItem value="lost">Perdido</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+          )}
+          {radio?.status === "maintenance" && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 sm:col-span-2">
+              O status de manutenção é controlado pelo módulo Manutenção. Finalize ou cancele a
+              ordem por lá para liberar o rádio.
             </div>
           )}
           <div className="space-y-1.5 sm:col-span-2">
