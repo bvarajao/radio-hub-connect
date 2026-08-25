@@ -79,7 +79,7 @@ function SidebarBody({ onNavigate }: { onNavigate?: (() => void) | undefined }) 
             <p className="truncate text-xs text-sidebar-foreground/55">Operação</p>
           </div>
           <Link
-            to="/login"
+            to="/"
             className="text-sidebar-foreground/55 transition-colors hover:text-sidebar-foreground"
             aria-label="Sair"
           >
