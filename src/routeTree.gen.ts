@@ -10,8 +10,11 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ClientesRouteImport } from './routes/clientes'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as RadiosRouteImport } from './routes/radios'
+import { Route as DevolucaoIndexRouteImport } from './routes/devolucao.index'
+import { Route as DevolucaoRentalIdRouteImport } from './routes/devolucao.$rentalId'
 import { Route as LocacoesIndexRouteImport } from './routes/locacoes.index'
 import { Route as LocacoesNovaRouteImport } from './routes/locacoes.nova'
 import { Route as RadiosRadioIdRouteImport } from './routes/radios.$radioId'
@@ -19,6 +22,11 @@ import { Route as RadiosRadioIdRouteImport } from './routes/radios.$radioId'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ClientesRoute = ClientesRouteImport.update({
+  id: '/clientes',
+  path: '/clientes',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -29,6 +37,16 @@ const DashboardRoute = DashboardRouteImport.update({
 const RadiosRoute = RadiosRouteImport.update({
   id: '/radios',
   path: '/radios',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DevolucaoIndexRoute = DevolucaoIndexRouteImport.update({
+  id: '/devolucao/',
+  path: '/devolucao/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DevolucaoRentalIdRoute = DevolucaoRentalIdRouteImport.update({
+  id: '/devolucao/$rentalId',
+  path: '/devolucao/$rentalId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LocacoesIndexRoute = LocacoesIndexRouteImport.update({
@@ -49,61 +67,82 @@ const RadiosRadioIdRoute = RadiosRadioIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/clientes': typeof ClientesRoute
   '/dashboard': typeof DashboardRoute
   '/radios': typeof RadiosRouteWithChildren
+  '/devolucao/$rentalId': typeof DevolucaoRentalIdRoute
   '/locacoes/nova': typeof LocacoesNovaRoute
   '/radios/$radioId': typeof RadiosRadioIdRoute
+  '/devolucao/': typeof DevolucaoIndexRoute
   '/locacoes/': typeof LocacoesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/clientes': typeof ClientesRoute
   '/dashboard': typeof DashboardRoute
   '/radios': typeof RadiosRouteWithChildren
+  '/devolucao/$rentalId': typeof DevolucaoRentalIdRoute
   '/locacoes/nova': typeof LocacoesNovaRoute
   '/radios/$radioId': typeof RadiosRadioIdRoute
+  '/devolucao': typeof DevolucaoIndexRoute
   '/locacoes': typeof LocacoesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/clientes': typeof ClientesRoute
   '/dashboard': typeof DashboardRoute
   '/radios': typeof RadiosRouteWithChildren
+  '/devolucao/$rentalId': typeof DevolucaoRentalIdRoute
   '/locacoes/nova': typeof LocacoesNovaRoute
   '/radios/$radioId': typeof RadiosRadioIdRoute
+  '/devolucao/': typeof DevolucaoIndexRoute
   '/locacoes/': typeof LocacoesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/clientes'
     | '/dashboard'
     | '/radios'
+    | '/devolucao/$rentalId'
     | '/locacoes/nova'
     | '/radios/$radioId'
+    | '/devolucao/'
     | '/locacoes/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/clientes'
     | '/dashboard'
     | '/radios'
+    | '/devolucao/$rentalId'
     | '/locacoes/nova'
     | '/radios/$radioId'
+    | '/devolucao'
     | '/locacoes'
   id:
     | '__root__'
     | '/'
+    | '/clientes'
     | '/dashboard'
     | '/radios'
+    | '/devolucao/$rentalId'
     | '/locacoes/nova'
     | '/radios/$radioId'
+    | '/devolucao/'
     | '/locacoes/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ClientesRoute: typeof ClientesRoute
   DashboardRoute: typeof DashboardRoute
   RadiosRoute: typeof RadiosRouteWithChildren
+  DevolucaoRentalIdRoute: typeof DevolucaoRentalIdRoute
   LocacoesNovaRoute: typeof LocacoesNovaRoute
+  DevolucaoIndexRoute: typeof DevolucaoIndexRoute
   LocacoesIndexRoute: typeof LocacoesIndexRoute
 }
 
@@ -114,6 +153,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/clientes': {
+      id: '/clientes'
+      path: '/clientes'
+      fullPath: '/clientes'
+      preLoaderRoute: typeof ClientesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -128,6 +174,20 @@ declare module '@tanstack/react-router' {
       path: '/radios'
       fullPath: '/radios'
       preLoaderRoute: typeof RadiosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/devolucao/': {
+      id: '/devolucao/'
+      path: '/devolucao'
+      fullPath: '/devolucao/'
+      preLoaderRoute: typeof DevolucaoIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/devolucao/$rentalId': {
+      id: '/devolucao/$rentalId'
+      path: '/devolucao/$rentalId'
+      fullPath: '/devolucao/$rentalId'
+      preLoaderRoute: typeof DevolucaoRentalIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/locacoes/': {
@@ -167,9 +227,12 @@ const RadiosRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ClientesRoute: ClientesRoute,
   DashboardRoute: DashboardRoute,
   RadiosRoute: RadiosRouteWithChildren,
+  DevolucaoRentalIdRoute: DevolucaoRentalIdRoute,
   LocacoesNovaRoute: LocacoesNovaRoute,
+  DevolucaoIndexRoute: DevolucaoIndexRoute,
   LocacoesIndexRoute: LocacoesIndexRoute,
 }
 export const routeTree = rootRouteImport
