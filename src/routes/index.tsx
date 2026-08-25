@@ -48,7 +48,9 @@ function LoginPage() {
         }
       } catch (err) {
         if (!cancelled) {
-          toast.error(err instanceof Error ? err.message : "Não foi possível concluir a confirmação");
+          toast.error(
+            err instanceof Error ? err.message : "Não foi possível concluir a confirmação",
+          );
         }
       }
     })();
