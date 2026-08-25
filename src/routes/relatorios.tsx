@@ -1,106 +1,12 @@
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import {
-  BarChart3,
-  Download,
-  PackageX,
-  PieChart,
-  RadioTower,
-  Users,
-  Wrench,
-} from "lucide-react";
+import { BarChart3, PackageX, PieChart, RadioTower, Users, Wrench } from "lucide-react";
+import { toast } from "sonner";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
 import { Badge } from "@/components/app/StatusBadge";
-import { Button } from "@/components/ui/button";
+import { brlExact } from "@/lib/mock-data";
+import { listClients,listFinance,listMaintenance,listRadios,listRentals,type DbClient,type DbFinance,type DbMaintenance,type DbRadio,type DbRental } from "@/lib/live-data";
 
-export const Route = createFileRoute("/relatorios")({
-  head: () => ({
-    meta: [
-      { title: "Relatórios | Papo de Produtor — Gestão de Rádios" },
-      {
-        name: "description",
-        content:
-          "Relatórios de faturamento, utilização de rádios, clientes, manutenção e perdas do estoque.",
-      },
-      { property: "og:title", content: "Relatórios — Papo de Produtor" },
-      {
-        property: "og:description",
-        content: "Análises operacionais e financeiras da locação de rádios.",
-      },
-    ],
-  }),
-  component: ReportsPage,
-});
-
-const reports = [
-  {
-    icon: BarChart3,
-    title: "Faturamento",
-    text: "Receita por período, cliente e tipo de evento.",
-    ready: true,
-  },
-  {
-    icon: RadioTower,
-    title: "Utilização dos rádios",
-    text: "Dias em campo, ociosidade e rentabilidade por patrimônio.",
-    ready: true,
-  },
-  { icon: Users, title: "Clientes", text: "Ranking, recorrência e ticket médio.", ready: false },
-  {
-    icon: Wrench,
-    title: "Manutenção",
-    text: "Custos por equipamento e recorrência de falhas.",
-    ready: false,
-  },
-  {
-    icon: PackageX,
-    title: "Perdas e avarias",
-    text: "Equipamentos não devolvidos e prejuízo acumulado.",
-    ready: false,
-  },
-  {
-    icon: PieChart,
-    title: "Ocupação do estoque",
-    text: "Ocupação média e picos de demanda do calendário.",
-    ready: false,
-  },
-];
-
-function ReportsPage() {
-  return (
-    <AppShell title="Relatórios">
-      <PageHeader
-        title="Relatórios"
-        subtitle="Análises da operação — em construção nesta versão de protótipo"
-        actions={
-          <Button variant="outline">
-            <Download className="h-4 w-4" /> Exportar tudo
-          </Button>
-        }
-      />
-
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {reports.map(({ icon: Icon, title, text, ready }) => (
-          <article
-            key={title}
-            className="surface-panel flex flex-col gap-3 p-5 transition-shadow hover:shadow-[var(--shadow-card)]"
-          >
-            <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3">
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/12 text-accent-foreground">
-                <Icon className="h-5 w-5" />
-              </span>
-              <h2 className="min-w-0 truncate font-display text-sm font-bold">{title}</h2>
-            </div>
-            <p className="flex-1 text-xs text-muted-foreground">{text}</p>
-            <div className="flex items-center justify-between">
-              <Badge tone={ready ? "success" : "muted"}>{ready ? "Disponível" : "Em breve"}</Badge>
-              <Button variant="ghost" size="sm" disabled={!ready}>
-                Abrir
-              </Button>
-            </div>
-          </article>
-        ))}
-      </div>
-    </AppShell>
-  );
-}
+export const Route=createFileRoute("/relatorios")({component:ReportsPage});
+function ReportsPage(){const [radios,setRadios]=useState<DbRadio[]>([]);const [rentals,setRentals]=useState<DbRental[]>([]);const [clients,setClients]=useState<DbClient[]>([]);const [finance,setFinance]=useState<DbFinance[]>([]);const [maintenance,setMaintenance]=useState<DbMaintenance[]>([]);useEffect(()=>{Promise.all([listRadios(),listRentals(),listClients(),listFinance(),listMaintenance()]).then(([r,l,c,f,m])=>{setRadios(r);setRentals(l);setClients(c);setFinance(f);setMaintenance(m)}).catch(e=>toast.error(e instanceof Error?e.message:"Erro ao carregar relatórios"));},[]);const data=useMemo(()=>{const income=finance.filter(f=>f.type==="income").reduce((s,f)=>s+Number(f.amount),0);const expenses=finance.filter(f=>f.type==="expense").reduce((s,f)=>s+Number(f.amount),0);const lost=radios.filter(r=>r.status==="lost").length;const active=radios.filter(r=>["rented","reserved"].includes(r.status)).length;const occupancy=radios.length?Math.round(active/radios.length*100):0;const ticket=rentals.length?rentals.reduce((s,r)=>s+Number(r.total||0),0)/rentals.length:0;const maintenanceCost=maintenance.reduce((s,m)=>s+Number(m.cost||0),0);return{income,expenses,lost,occupancy,ticket,maintenanceCost}},[radios,rentals,finance,maintenance]);const cards=[{icon:BarChart3,title:"Faturamento acumulado",value:brlExact(data.income),text:`Despesas registradas: ${brlExact(data.expenses)}`,tone:"success" as const},{icon:RadioTower,title:"Utilização do estoque",value:`${data.occupancy}%`,text:`${radios.filter(r=>["rented","reserved"].includes(r.status)).length} de ${radios.length} rádios comprometidos`,tone:"brand" as const},{icon:Users,title:"Clientes",value:String(clients.length),text:`Ticket médio das locações: ${brlExact(data.ticket)}`,tone:"info" as const},{icon:Wrench,title:"Manutenção",value:brlExact(data.maintenanceCost),text:`${maintenance.filter(m=>!["completed","cancelled"].includes(m.status)).length} ordens em aberto`,tone:"warning" as const},{icon:PackageX,title:"Perdas",value:String(data.lost),text:"Rádios marcados como perdidos",tone:data.lost?"danger" as const:"success" as const},{icon:PieChart,title:"Locações",value:String(rentals.length),text:`${rentals.filter(r=>["active","late"].includes(r.status)).length} em andamento`,tone:"muted" as const}];return <AppShell title="Relatórios"><PageHeader title="Relatórios" subtitle="Indicadores consolidados da operação em tempo real"/><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{cards.map(({icon:Icon,title,value,text,tone})=><article key={title} className="surface-panel flex flex-col gap-4 p-5"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-primary/12 text-accent-foreground"><Icon className="h-5 w-5"/></span><h2 className="font-display text-sm font-bold">{title}</h2></div><p className="font-display text-2xl font-extrabold">{value}</p><div className="flex items-center justify-between gap-3"><p className="text-xs text-muted-foreground">{text}</p><Badge tone={tone}>Atual</Badge></div></article>)}</div></AppShell>}
