@@ -92,6 +92,7 @@ export type DbAccessory = {
   category: string;
   stock_total: number;
   unit_cost: number | null;
+  rental_rate: number;
   notes: string | null;
   is_active: boolean;
 };
