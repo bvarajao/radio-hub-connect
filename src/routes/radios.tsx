@@ -238,7 +238,9 @@ function NewRadioDialog({
           manufacturer: f.manufacturer || "Motorola",
           model: f.model,
         });
-        modelId = m[0]?.id;
+        const createdModelId = m[0]?.id;
+        if (!createdModelId) throw new Error("Não foi possível criar o modelo do rádio");
+        modelId = createdModelId;
       }
 
       await createRadio({
