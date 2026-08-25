@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - scripts/operational-upgrade.py
+      - .github/workflows/operational-upgrade.yml
 
 permissions:
   contents: write
