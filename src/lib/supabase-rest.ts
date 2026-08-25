@@ -11,6 +11,7 @@ type Session = {
   expires_in?: number;
   user: AuthUser;
 };
+export type AuthRedirectResult = false | "authenticated" | "recovery";
 
 function isBrowser() {
   return typeof window !== "undefined";
@@ -53,6 +54,34 @@ export function getCurrentUser() {
 
 export function getOrganizationId() {
   return isBrowser() ? localStorage.getItem(ORG_KEY) : null;
+}
+
+function friendlyDatabaseError(data: any) {
+  const raw = String(data?.message || data?.details || data?.hint || "Erro ao acessar o banco");
+  const context = `${raw} ${String(data?.details || "")} ${String(data?.hint || "")}`;
+
+  if (data?.code === "23505" || /duplicate key/i.test(context)) {
+    if (context.includes("radios_organization_id_code_key"))
+      return "Este código patrimonial já está cadastrado.";
+    if (context.includes("radios_org_serial_unique_idx"))
+      return "Este número de série já está cadastrado.";
+    if (context.includes("radio_models_organization_id_manufacturer_model_key"))
+      return "Este modelo já existe. Selecione-o na lista de modelos existentes.";
+    if (context.includes("accessories_organization_id_name_key"))
+      return "Já existe um acessório com este nome.";
+    if (context.includes("rentals_organization_id_code_key"))
+      return "Houve conflito na numeração da locação. Tente salvar novamente.";
+    if (context.includes("clients_org_document_unique"))
+      return "Já existe um cliente com este CPF/CNPJ.";
+    return "Já existe um cadastro com estes dados. Revise as informações e tente novamente.";
+  }
+
+  if (data?.code === "23503")
+    return "Este registro está sendo usado em outra parte do sistema e não pode ser removido diretamente.";
+  if (data?.code === "23514") return raw;
+  if (/permission denied|row-level security/i.test(context))
+    return "Seu acesso não permite esta operação. Saia e entre novamente; se persistir, revise as permissões do usuário.";
+  return raw;
 }
 
 async function authRequest(path: string, body: Record<string, unknown>) {
@@ -104,7 +133,12 @@ export async function resendSignupConfirmation(email: string) {
   return authRequest(`resend?redirect_to=${redirectTo}`, { type: "signup", email });
 }
 
-export async function completeAuthRedirect() {
+export async function sendPasswordReset(email: string) {
+  const redirectTo = encodeURIComponent(`${appOrigin()}/`);
+  return authRequest(`recover?redirect_to=${redirectTo}`, { email });
+}
+
+export async function completeAuthRedirect(): Promise<AuthRedirectResult> {
   if (!isBrowser() || !window.location.hash) return false;
   const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
   const accessToken = params.get("access_token");
@@ -120,13 +154,36 @@ export async function completeAuthRedirect() {
     expires_at: Math.floor(Date.now() / 1000) + expiresIn,
     user,
   });
+  const type = params.get("type") === "recovery" ? "recovery" : "authenticated";
   window.history.replaceState(
     {},
     document.title,
     window.location.pathname + window.location.search,
   );
+  if (type === "authenticated") await ensureOrganization();
+  return type;
+}
+
+export async function updatePassword(password: string) {
+  if (password.length < 6) throw new Error("A nova senha precisa ter pelo menos 6 caracteres.");
+  const token = await accessToken();
+  if (!token) throw new Error("O link de recuperação expirou. Solicite um novo link.");
+  const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    method: "PUT",
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ password }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok)
+    throw new Error(data?.msg || data?.message || "Não foi possível alterar a senha.");
+  const session = getSession();
+  if (session) saveSession({ ...session, user: data as AuthUser });
   await ensureOrganization();
-  return true;
+  return data as AuthUser;
 }
 
 export function signOut() {
@@ -170,7 +227,7 @@ export async function rest<T>(path: string, init: RequestInit = {}): Promise<T> 
   }
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
-    throw new Error(data?.message || data?.details || "Erro ao acessar o banco");
+    throw new Error(friendlyDatabaseError(data));
   }
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
