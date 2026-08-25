@@ -206,7 +206,19 @@ function SettingsPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-1">
-                    <span className="mr-2 font-semibold">{brlExact(Number(a.unit_cost || 0))}</span>
+                    <span className="mr-2 text-right text-xs">
+                      <b className="block">
+                        Locação{" "}
+                        {brlExact(
+                          Number(
+                            (a as DbAccessory & { rental_rate?: number | null }).rental_rate || 0,
+                          ),
+                        )}
+                      </b>
+                      <span className="text-muted-foreground">
+                        Custo {brlExact(Number(a.unit_cost || 0))}
+                      </span>
+                    </span>
                     <Button
                       variant="ghost"
                       size="icon"
@@ -267,7 +279,14 @@ function AccessoryDialog({
   item: DbAccessory | null;
   onSaved: () => void;
 }) {
-  const blank = { name: "", category: "other", stock_total: "0", unit_cost: "0", notes: "" };
+  const blank = {
+    name: "",
+    category: "other",
+    stock_total: "0",
+    unit_cost: "0",
+    rental_rate: "0",
+    notes: "",
+  };
   const [f, setF] = useState(blank);
   const [busy, setBusy] = useState(false);
 
@@ -278,6 +297,9 @@ function AccessoryDialog({
         category: item.category,
         stock_total: String(item.stock_total),
         unit_cost: String(item.unit_cost || 0),
+        rental_rate: String(
+          Number((item as DbAccessory & { rental_rate?: number | null }).rental_rate || 0),
+        ),
         notes: item.notes || "",
       });
     else if (open) setF(blank);
@@ -288,8 +310,8 @@ function AccessoryDialog({
       toast.error("Informe o nome do acessório");
       return;
     }
-    if (Number(f.stock_total) < 0 || Number(f.unit_cost) < 0) {
-      toast.error("Quantidade e valor não podem ser negativos");
+    if (Number(f.stock_total) < 0 || Number(f.unit_cost) < 0 || Number(f.rental_rate) < 0) {
+      toast.error("Quantidade e valores não podem ser negativos");
       return;
     }
     setBusy(true);
@@ -298,6 +320,7 @@ function AccessoryDialog({
       category: f.category.trim() || "other",
       stock_total: Number(f.stock_total || 0),
       unit_cost: Number(f.unit_cost || 0),
+      rental_rate: Number(f.rental_rate || 0),
       notes: f.notes.trim() || null,
       is_active: true,
     };
@@ -337,9 +360,15 @@ function AccessoryDialog({
             type="number"
           />
           <Field
-            label="Valor unitário"
+            label="Custo unitário"
             value={f.unit_cost}
             set={(v) => setF({ ...f, unit_cost: v })}
+            type="number"
+          />
+          <Field
+            label="Valor de locação / un."
+            value={f.rental_rate}
+            set={(v) => setF({ ...f, rental_rate: v })}
             type="number"
           />
           <div className="space-y-1.5 sm:col-span-2">

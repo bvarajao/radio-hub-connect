@@ -25,6 +25,7 @@ import {
   type DbClient,
 } from "@/lib/live-data";
 import {
+  accessoryAvailabilityForPeriod,
   blockedRadioIdsForPeriod,
   createRentalOperational,
   type OperationalRadio,
@@ -45,6 +46,7 @@ function NewRental() {
   const [radios, setRadios] = useState<OperationalRadio[]>([]);
   const [accessories, setAccessories] = useState<DbAccessory[]>([]);
   const [blocked, setBlocked] = useState<Set<string>>(new Set());
+  const [accessoryAvailability, setAccessoryAvailability] = useState<Record<string, number>>({});
   const [loadingAvailability, setLoadingAvailability] = useState(false);
   const [clientId, setClientId] = useState("");
   const [eventName, setEventName] = useState("");
@@ -75,11 +77,23 @@ function NewRental() {
     if (!pickup || !due || new Date(due) <= new Date(pickup)) return;
     let cancelled = false;
     setLoadingAvailability(true);
-    blockedRadioIdsForPeriod(new Date(pickup).toISOString(), new Date(due).toISOString())
-      .then((ids) => {
+    Promise.all([
+      blockedRadioIdsForPeriod(new Date(pickup).toISOString(), new Date(due).toISOString()),
+      accessoryAvailabilityForPeriod(new Date(pickup).toISOString(), new Date(due).toISOString()),
+    ])
+      .then(([ids, availability]) => {
         if (cancelled) return;
         setBlocked(ids);
+        setAccessoryAvailability(availability);
         setSelected((current) => current.filter((id) => !ids.has(id)));
+        setAcc((current) =>
+          Object.fromEntries(
+            Object.entries(current).map(([id, qty]) => [
+              id,
+              Math.min(qty, availability[id] ?? qty),
+            ]),
+          ),
+        );
       })
       .catch(
         (e) =>
@@ -100,10 +114,12 @@ function NewRental() {
     [radios, blocked],
   );
 
-  const accTotal = Object.entries(acc).reduce(
-    (sum, [id, q]) => sum + Number(accessories.find((a) => a.id === id)?.unit_cost || 0) * q,
-    0,
-  );
+  const rentalRate = (id: string) => {
+    const accessory = accessories.find((a) => a.id === id) as
+      (DbAccessory & { rental_rate?: number | null }) | undefined;
+    return Number(accessory?.rental_rate || 0);
+  };
+  const accTotal = Object.entries(acc).reduce((sum, [id, q]) => sum + rentalRate(id) * q, 0);
   const subtotal = Math.max(0, radioValue) + accTotal;
   const total = Math.max(0, subtotal - discount + surcharge);
   const client = clients.find((c) => c.id === clientId);
@@ -155,7 +171,7 @@ function NewRental() {
           .map(([id, q]) => ({
             id,
             quantity: q,
-            unit_rate: Number(accessories.find((a) => a.id === id)?.unit_cost || 0),
+            unit_rate: rentalRate(id),
           })),
       });
       toast.success("Locação criada com sucesso");
@@ -313,6 +329,10 @@ function NewRental() {
                 <div className="mt-3 space-y-2">
                   {accessories.map((a) => {
                     const q = acc[a.id] || 0;
+                    const availableQty = accessoryAvailability[a.id] ?? a.stock_total;
+                    const rate = Number(
+                      (a as DbAccessory & { rental_rate?: number | null }).rental_rate || 0,
+                    );
                     return (
                       <div
                         key={a.id}
@@ -321,7 +341,7 @@ function NewRental() {
                         <div>
                           <p className="text-sm font-medium">{a.name}</p>
                           <p className="text-xs text-muted-foreground">
-                            {a.stock_total} em estoque · {brlExact(Number(a.unit_cost || 0))}/un
+                            {availableQty} disponíveis no período · {brlExact(rate)}/un
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
@@ -338,7 +358,7 @@ function NewRental() {
                             type="button"
                             variant="outline"
                             size="icon"
-                            disabled={q >= a.stock_total}
+                            disabled={q >= availableQty}
                             onClick={() => setAcc((p) => ({ ...p, [a.id]: q + 1 }))}
                           >
                             +

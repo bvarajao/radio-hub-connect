@@ -24,7 +24,7 @@ export type OperationalRentalAccessory = {
   returned_quantity: number;
   unit_rate: number;
   notes: string | null;
-  accessories?: { name: string; stock_total: number } | null;
+  accessories?: { name: string; stock_total: number; rental_rate?: number | null } | null;
 };
 export type OperationalRental = DbRental & {
   rental_accessories?: OperationalRentalAccessory[];
@@ -379,6 +379,37 @@ export async function blockedRadioIdsForPeriod(
   return blocked;
 }
 
+export async function accessoryAvailabilityForPeriod(
+  pickupAt: string,
+  dueAt: string,
+  excludeRentalId?: string,
+) {
+  const [accessories, rentals] = await Promise.all([
+    listAllAccessories(),
+    listRentalsOperational(),
+  ]);
+  const committed = new Map<string, number>();
+
+  for (const rental of rentals) {
+    if (excludeRentalId && rental.id === excludeRentalId) continue;
+    if (!activeRentalStatuses.has(rental.status)) continue;
+    if (!overlap(pickupAt, dueAt, rental.pickup_at, rental.due_at)) continue;
+    for (const item of rental.rental_accessories || []) {
+      committed.set(
+        item.accessory_id,
+        (committed.get(item.accessory_id) || 0) + Number(item.quantity || 0),
+      );
+    }
+  }
+
+  return Object.fromEntries(
+    accessories.map((item) => [
+      item.id,
+      Math.max(0, Number(item.stock_total || 0) - (committed.get(item.id) || 0)),
+    ]),
+  ) as Record<string, number>;
+}
+
 async function nextRentalCode() {
   const org = await requireOrganization();
   const year = new Date().getFullYear();
@@ -398,17 +429,54 @@ async function rebuildRentalFinance(rental: {
   deposit_amount: number;
   payment_status: string;
   payment_method: string | null;
+  due_at?: string | null;
 }) {
   const org = await requireOrganization();
-  await deleteRows(`financial_transactions?rental_id=eq.${rental.id}`);
-  if (rental.total <= 0) return;
+  const current = await rest<OperationalFinance[]>(
+    `financial_transactions?rental_id=eq.${rental.id}&select=*&order=created_at.asc`,
+  );
+  const paidRows = current.filter((item) => item.status === "paid");
+  const paidTotal = paidRows.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+
+  if (rental.total + 0.0001 < paidTotal) {
+    throw new Error(
+      `Esta locação já possui ${paidTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} recebidos. O total não pode ficar abaixo do valor já pago.`,
+    );
+  }
+
+  const desiredReceived = Math.min(
+    rental.total,
+    rental.payment_status === "paid"
+      ? rental.total
+      : Math.max(Number(rental.deposit_amount || 0), paidTotal),
+  );
+
+  await deleteRows(
+    `financial_transactions?rental_id=eq.${rental.id}&status=in.(pending,overdue,cancelled)`,
+  );
 
   const description = `Locação ${rental.code}${rental.event_name ? ` — ${rental.event_name}` : ""}`;
-  const paid = rental.payment_status === "paid";
-  const deposit = Math.min(Math.max(Number(rental.deposit_amount || 0), 0), rental.total);
   const rows: Array<Record<string, unknown>> = [];
+  const extraReceived = Math.max(0, desiredReceived - paidTotal);
 
-  if (paid) {
+  if (extraReceived > 0) {
+    rows.push({
+      organization_id: org,
+      rental_id: rental.id,
+      client_id: rental.client_id,
+      type: "income",
+      category: paidTotal > 0 ? "rental_payment" : "rental_deposit",
+      description: paidTotal > 0 ? `${description} — pagamento` : `${description} — entrada`,
+      amount: extraReceived,
+      status: "paid",
+      paid_at: new Date().toISOString(),
+      payment_method: rental.payment_method,
+    });
+  }
+
+  const effectiveReceived = paidTotal + extraReceived;
+  const remaining = Math.max(0, rental.total - effectiveReceived);
+  if (remaining > 0) {
     rows.push({
       organization_id: org,
       rental_id: rental.id,
@@ -416,39 +484,11 @@ async function rebuildRentalFinance(rental: {
       type: "income",
       category: "rental",
       description,
-      amount: rental.total,
-      status: "paid",
-      paid_at: new Date().toISOString(),
+      amount: remaining,
+      status: "pending",
+      due_date: rental.due_at ? rental.due_at.slice(0, 10) : null,
       payment_method: rental.payment_method,
     });
-  } else {
-    if (deposit > 0) {
-      rows.push({
-        organization_id: org,
-        rental_id: rental.id,
-        client_id: rental.client_id,
-        type: "income",
-        category: "rental_deposit",
-        description: `${description} — entrada`,
-        amount: deposit,
-        status: "paid",
-        paid_at: new Date().toISOString(),
-        payment_method: rental.payment_method,
-      });
-    }
-    if (rental.total - deposit > 0) {
-      rows.push({
-        organization_id: org,
-        rental_id: rental.id,
-        client_id: rental.client_id,
-        type: "income",
-        category: "rental",
-        description,
-        amount: rental.total - deposit,
-        status: "pending",
-        payment_method: rental.payment_method,
-      });
-    }
   }
 
   if (rows.length) {
@@ -458,6 +498,8 @@ async function rebuildRentalFinance(rental: {
       body: JSON.stringify(rows),
     });
   }
+
+  return { paidTotal: effectiveReceived, remaining };
 }
 
 export async function createRentalOperational(payload: {
@@ -550,11 +592,15 @@ export async function createRentalOperational(payload: {
       deposit_amount: payload.deposit_amount,
       payment_status: payload.payment_status,
       payment_method: payload.payment_method,
+      due_at: payload.due_at,
     });
 
     return rental;
   } catch (error) {
-    if (rentalId) await deleteRows(`rentals?id=eq.${rentalId}`).catch(() => undefined);
+    if (rentalId) {
+      await deleteRows(`rentals?id=eq.${rentalId}`).catch(() => undefined);
+      await refreshRadioOperationalStatuses(payload.radioIds).catch(() => undefined);
+    }
     throw error;
   }
 }
@@ -586,13 +632,28 @@ export async function updateRentalOperational(
   if (radioIds.some((id) => blocked.has(id)))
     throw new Error("A nova data conflita com outra reserva de um dos rádios.");
 
+  const paidRows = await rest<Array<{ amount: number }>>(
+    `financial_transactions?rental_id=eq.${rental.id}&status=eq.paid&select=amount`,
+  );
+  const alreadyPaid = paidRows.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  if (data.total + 0.0001 < alreadyPaid) {
+    throw new Error(
+      `Já existem ${alreadyPaid.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} recebidos. Ajuste o total ou faça o estorno no Financeiro antes de reduzir a locação.`,
+    );
+  }
+
+  const received = Math.min(data.total, Math.max(Number(data.deposit_amount || 0), alreadyPaid));
+  const paymentStatus =
+    data.total <= 0 || received >= data.total ? "paid" : received > 0 ? "partial" : "pending";
+  const normalized = { ...data, deposit_amount: received, payment_status: paymentStatus };
+
   const now = new Date();
   const status =
     new Date(data.pickup_at) > now ? "reserved" : new Date(data.due_at) < now ? "late" : "active";
   const rows = await rest<OperationalRental[]>(`rentals?id=eq.${rental.id}&select=*`, {
     method: "PATCH",
     headers: { Prefer: "return=representation" },
-    body: JSON.stringify({ ...data, status }),
+    body: JSON.stringify({ ...normalized, status }),
   });
 
   if (radioIds.length) await refreshRadioOperationalStatuses(radioIds);
@@ -603,9 +664,10 @@ export async function updateRentalOperational(
     client_id: data.client_id,
     event_name: data.event_name,
     total: data.total,
-    deposit_amount: data.deposit_amount,
-    payment_status: data.payment_status,
+    deposit_amount: normalized.deposit_amount,
+    payment_status: normalized.payment_status,
     payment_method: data.payment_method,
+    due_at: data.due_at,
   });
 
   return rows;
