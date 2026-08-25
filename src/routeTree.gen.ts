@@ -12,6 +12,8 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as RadiosRouteImport } from './routes/radios'
+import { Route as LocacoesIndexRouteImport } from './routes/locacoes.index'
+import { Route as LocacoesNovaRouteImport } from './routes/locacoes.nova'
 import { Route as RadiosRadioIdRouteImport } from './routes/radios.$radioId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -29,6 +31,16 @@ const RadiosRoute = RadiosRouteImport.update({
   path: '/radios',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LocacoesIndexRoute = LocacoesIndexRouteImport.update({
+  id: '/locacoes/',
+  path: '/locacoes/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LocacoesNovaRoute = LocacoesNovaRouteImport.update({
+  id: '/locacoes/nova',
+  path: '/locacoes/nova',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RadiosRadioIdRoute = RadiosRadioIdRouteImport.update({
   id: '/$radioId',
   path: '/$radioId',
@@ -39,33 +51,60 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/radios': typeof RadiosRouteWithChildren
+  '/locacoes/nova': typeof LocacoesNovaRoute
   '/radios/$radioId': typeof RadiosRadioIdRoute
+  '/locacoes/': typeof LocacoesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/radios': typeof RadiosRouteWithChildren
+  '/locacoes/nova': typeof LocacoesNovaRoute
   '/radios/$radioId': typeof RadiosRadioIdRoute
+  '/locacoes': typeof LocacoesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/radios': typeof RadiosRouteWithChildren
+  '/locacoes/nova': typeof LocacoesNovaRoute
   '/radios/$radioId': typeof RadiosRadioIdRoute
+  '/locacoes/': typeof LocacoesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/dashboard' | '/radios' | '/radios/$radioId'
+  fullPaths:
+    | '/'
+    | '/dashboard'
+    | '/radios'
+    | '/locacoes/nova'
+    | '/radios/$radioId'
+    | '/locacoes/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dashboard' | '/radios' | '/radios/$radioId'
-  id: '__root__' | '/' | '/dashboard' | '/radios' | '/radios/$radioId'
+  to:
+    | '/'
+    | '/dashboard'
+    | '/radios'
+    | '/locacoes/nova'
+    | '/radios/$radioId'
+    | '/locacoes'
+  id:
+    | '__root__'
+    | '/'
+    | '/dashboard'
+    | '/radios'
+    | '/locacoes/nova'
+    | '/radios/$radioId'
+    | '/locacoes/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRoute
   RadiosRoute: typeof RadiosRouteWithChildren
+  LocacoesNovaRoute: typeof LocacoesNovaRoute
+  LocacoesIndexRoute: typeof LocacoesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -89,6 +128,20 @@ declare module '@tanstack/react-router' {
       path: '/radios'
       fullPath: '/radios'
       preLoaderRoute: typeof RadiosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/locacoes/': {
+      id: '/locacoes/'
+      path: '/locacoes'
+      fullPath: '/locacoes/'
+      preLoaderRoute: typeof LocacoesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/locacoes/nova': {
+      id: '/locacoes/nova'
+      path: '/locacoes/nova'
+      fullPath: '/locacoes/nova'
+      preLoaderRoute: typeof LocacoesNovaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/radios/$radioId': {
@@ -116,6 +169,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
   RadiosRoute: RadiosRouteWithChildren,
+  LocacoesNovaRoute: LocacoesNovaRoute,
+  LocacoesIndexRoute: LocacoesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
