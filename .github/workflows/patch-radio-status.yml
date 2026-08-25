@@ -1,0 +1,223 @@
+name: Patch radio status consistency
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/patch-radio-status.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Patch operational radio status logic
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/lib/operations.ts')
+          s = p.read_text()
+
+          marker = '''async function deleteRows(path: string) {
+            return rest<unknown>(path, {
+              method: "DELETE",
+              headers: { Prefer: "return=minimal" },
+            });
+          }
+          '''
+          helper = marker + '''\nasync function refreshRadioOperationalStatuses(radioIds: string[]) {
+            const ids = [...new Set(radioIds.filter(Boolean))];
+            if (!ids.length) return;
+
+            const [radios, maintenance, rentalLinks] = await Promise.all([
+              rest<Array<{ id: string; status: string }>>(
+                `radios?id=in.(${inFilter(ids)})&select=id,status`,
+              ),
+              rest<Array<{ radio_id: string }>>(
+                `maintenance_orders?radio_id=in.(${inFilter(ids)})&status=in.(open,in_progress,waiting_parts)&select=radio_id`,
+              ),
+              rest<Array<{ radio_id: string; rentals?: { status: string } | null }>>(
+                `rental_radios?radio_id=in.(${inFilter(ids)})&select=radio_id,rentals(status)`,
+              ),
+            ]);
+
+            const maintenanceIds = new Set(maintenance.map((m) => m.radio_id));
+            const rentedIds = new Set(
+              rentalLinks
+                .filter((link) => link.rentals && ["active", "late"].includes(link.rentals.status))
+                .map((link) => link.radio_id),
+            );
+
+            await Promise.all(
+              radios.map((radio) => {
+                if (["lost", "inactive"].includes(radio.status)) return Promise.resolve();
+                const status = maintenanceIds.has(radio.id)
+                  ? "maintenance"
+                  : rentedIds.has(radio.id)
+                    ? "rented"
+                    : "available";
+                if (status === radio.status) return Promise.resolve();
+                return updateRadioRecord(radio.id, { status }).then(() => undefined);
+              }),
+            );
+          }
+          '''
+          if marker not in s:
+              raise SystemExit('deleteRows marker not found')
+          s = s.replace(marker, helper, 1)
+
+          old = '''    if (!others.length) {
+              const radioRows = await rest<Array<{ status: string }>>(`radios?id=eq.${current.radio_id}&select=status&limit=1`);
+              if (radioRows[0]?.status === "maintenance") await updateRadioRecord(current.radio_id, { status: "available" });
+            }
+          }
+          '''
+          new = '''    if (!others.length) {
+              await refreshRadioOperationalStatuses([current.radio_id]);
+            }
+          }
+          '''
+          if old not in s:
+              raise SystemExit('maintenance completion marker not found')
+          s = s.replace(old, new, 1)
+
+          old = '''  if (!others.length) {
+            const radioRows = await rest<Array<{ status: string }>>(`radios?id=eq.${item.radio_id}&select=status&limit=1`);
+            if (radioRows[0]?.status === "maintenance") await updateRadioRecord(item.radio_id, { status: "available" });
+          }
+          '''
+          new = '''  if (!others.length) {
+            await refreshRadioOperationalStatuses([item.radio_id]);
+          }
+          '''
+          if old not in s:
+              raise SystemExit('maintenance delete marker not found')
+          s = s.replace(old, new, 1)
+
+          old = '''    if (links.length) {
+              const radioIds = [...new Set(links.map((x) => x.radio_id))];
+              await rest(`radios?id=in.(${inFilter(radioIds)})&status=eq.available`, {
+                method: "PATCH",
+                headers: { Prefer: "return=minimal" },
+                body: JSON.stringify({ status: "rented" }),
+              });
+            }
+          }
+          '''
+          new = '''    if (links.length) {
+              const radioIds = [...new Set(links.map((x) => x.radio_id))];
+              await refreshRadioOperationalStatuses(radioIds);
+            }
+          }
+          '''
+          if old not in s:
+              raise SystemExit('sync start marker not found')
+          s = s.replace(old, new, 1)
+
+          old = '''  if (radioIds.length) {
+            await rest(`radios?id=in.(${inFilter(radioIds)})`, {
+              method: "PATCH",
+              headers: { Prefer: "return=minimal" },
+              body: JSON.stringify({ status: status === "reserved" ? "available" : "rented" }),
+            });
+          }
+          '''
+          new = '''  if (radioIds.length) {
+            await refreshRadioOperationalStatuses(radioIds);
+          }
+          '''
+          if old not in s:
+              raise SystemExit('update rental status marker not found')
+          s = s.replace(old, new, 1)
+
+          old = '''  if (removed.length) {
+            await deleteRows(`rental_radios?rental_id=eq.${rental.id}&radio_id=in.(${inFilter(removed)})`);
+            await rest(`radios?id=in.(${inFilter(removed)})&status=in.(rented,reserved)`, {
+              method: "PATCH",
+              headers: { Prefer: "return=minimal" },
+              body: JSON.stringify({ status: "available" }),
+            });
+          }
+          '''
+          new = '''  if (removed.length) {
+            await deleteRows(`rental_radios?rental_id=eq.${rental.id}&radio_id=in.(${inFilter(removed)})`);
+          }
+          '''
+          if old not in s:
+              raise SystemExit('replace removed marker not found')
+          s = s.replace(old, new, 1)
+
+          old = '''    if (["active", "late"].includes(rental.status)) {
+              await rest(`radios?id=in.(${inFilter(added)})`, {
+                method: "PATCH",
+                headers: { Prefer: "return=minimal" },
+                body: JSON.stringify({ status: "rented" }),
+              });
+            }
+          }
+          }
+          '''
+          new = '''  }
+
+            if (removed.length || added.length) {
+              await refreshRadioOperationalStatuses([...removed, ...added]);
+            }
+          }
+          '''
+          if old not in s:
+              # tolerate prettier's indentation only by trying a narrower replacement
+              old2 = '''    if (["active", "late"].includes(rental.status)) {
+              await rest(`radios?id=in.(${inFilter(added)})`, {
+                method: "PATCH",
+                headers: { Prefer: "return=minimal" },
+                body: JSON.stringify({ status: "rented" }),
+              });
+            }
+          }
+          '''
+              new2 = '''  }
+
+            if (removed.length || added.length) {
+              await refreshRadioOperationalStatuses([...removed, ...added]);
+            }
+          '''
+              if old2 not in s:
+                  raise SystemExit('replace added marker not found')
+              s = s.replace(old2, new2, 1)
+          else:
+              s = s.replace(old, new, 1)
+
+          old = '''  const radioIds = (rental.rental_radios || []).map((r) => r.radio_id);
+          if (radioIds.length) {
+            await rest(`radios?id=in.(${inFilter(radioIds)})&status=in.(rented,reserved)`, {
+              method: "PATCH",
+              headers: { Prefer: "return=minimal" },
+              body: JSON.stringify({ status: "available" }),
+            });
+          }
+          '''
+          new = '''  const radioIds = (rental.rental_radios || []).map((r) => r.radio_id);
+          if (radioIds.length) {
+            await refreshRadioOperationalStatuses(radioIds);
+          }
+          '''
+          if old not in s:
+              raise SystemExit('cancel marker not found')
+          s = s.replace(old, new, 1)
+
+          p.write_text(s)
+          PY
+      - run: bunx prettier --write src/lib/operations.ts
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/operations.ts
+          git diff --cached --quiet || (git commit -m "fix: keep radio status consistent across future reservations" && git push)
